@@ -1,0 +1,83 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% DECKBLATT (Cover Page)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\thispagestyle{empty}
+\newgeometry{
+    top=43.5mm,
+    bottom=10mm,
+    inner=20mm,
+    outer=20mm
+}
+
+\textblockorigin{20mm}{43.5mm}
+
+\begin{textblock*}{19mm}[1,0](\textwidth-1mm, 2cm-43.5mm)%
+    \raggedleft\includegraphics{./Ressourcen/Universitaet_Logo_RGB.pdf}%
+\end{textblock*}
+
+\begin{textblock*}{\textwidth}[0,0](0cm, 0cm)%
+{\fontsize{24pt}{26pt}\selectfont\textbf{\Titel}}
+
+\vspace*{14pt}
+{\fontsize{18pt}{27pt}\selectfont\textbf{\Untertitel}}
+\end{textblock*}
+
+\vspace*{92.2mm}
+\fontsize{15pt}{17.5pt}\selectfont%
+Wissenschaftliche Arbeit zur Erlangung des Grades\\
+\Grad\\
+an der \Fakultaet{} der Technischen Universit\"at M\"unchen.
+
+\renewcommand{\baselinestretch}{1.47}
+\normalsize\selectfont
+\vspace*{17.1mm}
+\TabPositions{4cm}
+\textbf{Betreut von}\tab
+\begin{minipage}[t]{\textwidth-\CurrentLineWidth}
+\BetreutVonPerson\\
+\BetreutVonLehrstuhl\strut
+\end{minipage}
+
+\vspace*{4.3mm}
+\textbf{Eingereicht von}\tab
+\begin{minipage}[t]{\textwidth-\CurrentLineWidth}
+\EingereichtVon
+\end{minipage}
+
+\vspace*{-1mm}
+\textbf{Eingereicht am}\tab
+\begin{minipage}[t]{\textwidth-\CurrentLineWidth}
+M\"unchen, den \Datum\strut
+\end{minipage}
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ERKLAERUNG (Declaration)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\thispagestyle{empty}
+
+\vspace*{-15.8mm}
+\fontsize{19pt}{21pt}\selectfont
+\ErklaerungUeberschrift
+
+\vspace{25.3mm}
+Erkl\"arung
+
+\normalsize\selectfont
+\vspace{13.2mm}
+Ich versichere hiermit, dass ich die von mir eingereichte Abschlussarbeit
+selbstst\"andig verfasst und keine anderen als die angegebenen Quellen und
+Hilfsmittel benutzt habe.
+
+\vspace{18.1mm}
+\rule[-3.7mm]{\linewidth}{0.5pt}
+\Ort{}, \Datum{}, Unterschrift
+
+\newpage
+
+% Restore main document geometry:
+\restoregeometry
+\textblockorigin{\SeitenrandLinks}{\SeitenrandOben}

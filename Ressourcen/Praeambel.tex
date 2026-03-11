@@ -1,0 +1,62 @@
+\documentclass[%
+    fontsize=11pt, % Schriftgroesse
+    twoside=off % kein einseitiges Layout
+]{scrbook} % Dokumentenklasse: KOMA-Script Book
+\usepackage{scrlayer-scrpage} % Anpassbare Kopf- und Fusszeilen
+
+\usepackage[utf8]{inputenc} % Textkodierung: UTF-8
+\usepackage[T1]{fontenc} % Zeichensatzkodierung
+
+\usepackage[ngerman]{babel} % Deutsche Lokalisierung
+\usepackage{graphicx} % Grafiken
+
+% Schriftart Helvetica:
+\usepackage[scaled]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Silbentrennung:
+\usepackage{hyphenat}
+\hyphenation{TUM}
+
+\usepackage[hidelinks]{hyperref} % Hyperlinks
+\usepackage[onehalfspacing]{setspace} % 1,5facher Zeilenabstand
+\usepackage{calc} % Berechnungen
+\usepackage{enumitem} % Mehr Kontrolle ueber Listen
+\usepackage{relsize} % Schriftgroesse relativ anpassen
+\usepackage{tabularx} % Flexiblere Tabellen
+\usepackage[tablewithout, figurewithout]{caption} % Beschriftungen
+
+% Nummerierung von Abbildungen & Tabellen durchgaengig:
+\usepackage{chngcntr}
+\counterwithout{figure}{chapter}
+\counterwithout{table}{chapter}
+
+% Abkuerzungen, Glossare:
+\usepackage[%
+    xindy,%
+    acronym,%
+    nopostdot,%
+]{glossaries}
+
+% Cover page packages:
+\usepackage[absolute]{textpos} % Positionierung (fuer Deckblatt)
+\usepackage{tabto} % Tabulatoren (fuer Deckblatt)
+
+% Literaturverzeichnis:
+\usepackage[backend=biber, style=numeric, sorting=nyt]{biblatex}
+\addbibresource{references.bib}
+
+% Spezielle Befehlsdefinitionen:
+\newcommand{\Thema}{}
+
+\usepackage{bookmark} % Lesezeichen
+
+% Unterdrueckung layoutbedingter Warnungen
+\usepackage[immediate]{silence}
+\WarningFilter[layout]{latex}{Reference `LastPage'}
+\WarningFilter[layout]{lastpage}{Rerun to get the references right}
+\WarningFilter[layout]{latex}{Label(s) may have changed.}
+\WarningFilter[layout]{textpos}{environment textblock* not in vertical mode}
+\WarningFilter[layout]{scrbook}{Change of }
+\WarningFilter[layout]{tocbasic}{number width of}
+\WarningFilter[layout]{pdfTeX}{name{glo:abk} has been referenced but does not exist, replaced by a fixed one}
