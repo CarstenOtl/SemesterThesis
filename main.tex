@@ -1,46 +1,46 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% TUM Master Thesis
+% TUM Semester Thesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{./Ressourcen/Praeambel.tex} % !!! NICHT ENTFERNEN !!!
+\input{./Ressourcen/Praeambel.tex} % !!! DO NOT REMOVE !!!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Thema der Arbeit (erscheint in der Fusszeile):
+% Thesis title (appears in the footer):
 \renewcommand{\Thema}{%
-    Titel der Arbeit}
+    Thesis Title}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% METADATEN - Bitte anpassen:
+% METADATA - Please adjust:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newcommand{\Titel}{%
-    Titel der Arbeit}
+    Thesis Title}
 \newcommand{\Untertitel}{%
-    Untertitel}
+    Subtitle}
 \newcommand{\Grad}{%
     M.Sc.}
 \newcommand{\Fakultaet}{%
-    Fakult\"at f\"ur Maschinenwesen}
+    Department of Mechanical Engineering}
 \newcommand{\BetreutVonPerson}{%
     Univ.-Prof. Dr. Max Musterprofessor}
 \newcommand{\BetreutVonLehrstuhl}{%
-    Lehrstuhl f\"ur Musterlehre}
+    Chair of Example Studies}
 \newcommand{\EingereichtVon}{%
     Carsten Oertel\\
     Musterweg 20\\
-    80999 M\"unchen}
+    80999 Munich}
 \newcommand{\EingereichtAmDatum}{%
-    TT.MM.JJJJ}
+    DD.MM.YYYY}
 \newcommand{\ErklaerungUeberschrift}{%
-    Anhang I}
+    Appendix I}
 \newcommand{\Ort}{%
-    M\"unchen}
+    Munich}
 \newcommand{\Datum}{%
-    TT.MM.JJJJ}
+    DD.MM.YYYY}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{./Ressourcen/Anfang.tex} % !!! NICHT ENTFERNEN !!!
+\input{./Ressourcen/Anfang.tex} % !!! DO NOT REMOVE !!!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -50,13 +50,13 @@
 \date{\Datum}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% DECKBLATT & ERKLAERUNG
+% COVER PAGE & DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \input{./Ressourcen/Deckblatt.tex}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% VERZEICHNISSE
+% LISTS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \tableofcontents
@@ -65,10 +65,10 @@
 
 \listoftables
 
-\printglossary[type=\acronymtype,title=Abk\"urzungsverzeichnis]
+\printglossary[type=\acronymtype,title=List of Abbreviations]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% INHALT
+% CONTENT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \input{./chapters/introduction.tex}
@@ -84,9 +84,9 @@
 \input{./chapters/conclusion.tex}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% LITERATURVERZEICHNIS
+% BIBLIOGRAPHY
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\printbibliography[heading=bibintoc, title={Literaturverzeichnis}]
+\printbibliography[heading=bibintoc, title={Bibliography}]
 
 \end{document}

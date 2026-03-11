@@ -1,11 +1,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% EINSTELLUNGEN
+% SETTINGS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \KOMAoptions{parskip=full}
 
 
-% Seitenraender:
+% Page margins:
 
 \newcommand{\SeitenrandOben}{25.8mm}
 \newcommand{\SeitenrandRechts}{21mm}
@@ -22,7 +22,7 @@
 ]{geometry}
 
 
-% Fusszeilen:
+% Footers:
 
 \setlength{\footheight}{\FusszeileHoehe}
 \clearscrheadfoot
@@ -34,7 +34,7 @@
 \pagestyle{scrheadings}
 
 
-% Fussnoten:
+% Footnotes:
 
 \KOMAoptions{%
     footnotes=multiple
@@ -46,7 +46,7 @@
 \setkomafont{footnoterule}{\fontsize{9pt}{20pt}\selectfont}
 
 
-% Ueberschriften:
+% Headings:
 
 \KOMAoptions{%
     open=any,
@@ -83,7 +83,7 @@
 \renewcommand*{\subsectionformat}{\makebox[13mm][l]{\thesubsection.\enskip}}
 
 
-% Listen:
+% Lists:
 
 \setlist{%
     labelsep=0mm,
@@ -121,7 +121,7 @@
 }
 
 
-% Verzeichnisse:
+% Table of contents and lists:
 
 \KOMAoptions{%
     toc=flat,
@@ -151,7 +151,7 @@
 \setuptoc{toc}{noparskipfake}
 \unsettoc{toc}{chapteratlist}
 
-% -- Abbildungs- und Tabellenverzeichnis:
+% -- List of figures and list of tables:
 
 \AfterTOCHead[lof]{\protect\vspace{-.1ex}\doublespacing}
 \setuptoc{lof}{noparskipfake}
@@ -159,11 +159,11 @@
 \AfterTOCHead[lot]{\protect\vspace{-.1ex}\doublespacing}
 \setuptoc{lot}{noparskipfake}
 
-% Beschriftungen:
+% Captions:
 \DeclareCaptionFormat{WissenschaftlicheArbeiten}{\fontsize{8pt}{10pt}\selectfont#1 #2#3\par}
 \DeclareCaptionLabelFormat{WissenschaftlicheArbeiten}{\bfseries\selectfont#1 #2}
 
-% -- Tabellen:
+% -- Tables:
 \captionsetup[table]{%
     format=WissenschaftlicheArbeiten,
     labelformat=WissenschaftlicheArbeiten,
@@ -173,7 +173,7 @@
     skip=3pt
 }
 
-% -- Abbildungen:
+% -- Figures:
 \captionsetup[figure]{%
     format=WissenschaftlicheArbeiten,
     labelformat=WissenschaftlicheArbeiten,
@@ -184,11 +184,11 @@
 }
 
 
-% Tabellen:
+% Tables:
 \renewcommand{\arraystretch}{1.8}
 \newcolumntype{M}{X<{\vspace{4pt}}}
 
-% Glossare & Abkuerzungsverzeichnis:
+% Glossaries & abbreviations:
 
 \makeglossaries
 \input{Abkuerzungen.tex}

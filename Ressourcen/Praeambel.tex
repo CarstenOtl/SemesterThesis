@@ -1,37 +1,37 @@
 \documentclass[%
-    fontsize=11pt, % Schriftgroesse
-    twoside=off % kein einseitiges Layout
-]{scrbook} % Dokumentenklasse: KOMA-Script Book
-\usepackage{scrlayer-scrpage} % Anpassbare Kopf- und Fusszeilen
+    fontsize=11pt, % Font size
+    twoside=off % No two-sided layout
+]{scrbook} % Document class: KOMA-Script Book
+\usepackage{scrlayer-scrpage} % Customizable headers and footers
 
-\usepackage[utf8]{inputenc} % Textkodierung: UTF-8
-\usepackage[T1]{fontenc} % Zeichensatzkodierung
+\usepackage[utf8]{inputenc} % Text encoding: UTF-8
+\usepackage[T1]{fontenc} % Font encoding
 
-\usepackage[ngerman]{babel} % Deutsche Lokalisierung
-\usepackage{graphicx} % Grafiken
+\usepackage[english]{babel} % English localization
+\usepackage{graphicx} % Graphics
 
-% Schriftart Helvetica:
+% Font: Helvetica
 \usepackage[scaled]{helvet}
 \renewcommand{\familydefault}{\sfdefault}
 
-% Silbentrennung:
+% Hyphenation:
 \usepackage{hyphenat}
 \hyphenation{TUM}
 
 \usepackage[hidelinks]{hyperref} % Hyperlinks
-\usepackage[onehalfspacing]{setspace} % 1,5facher Zeilenabstand
-\usepackage{calc} % Berechnungen
-\usepackage{enumitem} % Mehr Kontrolle ueber Listen
-\usepackage{relsize} % Schriftgroesse relativ anpassen
-\usepackage{tabularx} % Flexiblere Tabellen
-\usepackage[tablewithout, figurewithout]{caption} % Beschriftungen
+\usepackage[onehalfspacing]{setspace} % 1.5x line spacing
+\usepackage{calc} % Calculations
+\usepackage{enumitem} % More control over lists
+\usepackage{relsize} % Relative font size adjustment
+\usepackage{tabularx} % More flexible tables
+\usepackage[tablewithout, figurewithout]{caption} % Captions
 
-% Nummerierung von Abbildungen & Tabellen durchgaengig:
+% Continuous numbering of figures & tables:
 \usepackage{chngcntr}
 \counterwithout{figure}{chapter}
 \counterwithout{table}{chapter}
 
-% Abkuerzungen, Glossare:
+% Abbreviations, glossaries:
 \usepackage[%
     xindy,%
     acronym,%
@@ -39,19 +39,19 @@
 ]{glossaries}
 
 % Cover page packages:
-\usepackage[absolute]{textpos} % Positionierung (fuer Deckblatt)
-\usepackage{tabto} % Tabulatoren (fuer Deckblatt)
+\usepackage[absolute]{textpos} % Positioning (for cover page)
+\usepackage{tabto} % Tab stops (for cover page)
 
-% Literaturverzeichnis:
+% Bibliography:
 \usepackage[backend=biber, style=numeric, sorting=nyt]{biblatex}
 \addbibresource{references.bib}
 
-% Spezielle Befehlsdefinitionen:
+% Custom command definitions:
 \newcommand{\Thema}{}
 
-\usepackage{bookmark} % Lesezeichen
+\usepackage{bookmark} % Bookmarks
 
-% Unterdrueckung layoutbedingter Warnungen
+% Suppress layout-related warnings
 \usepackage[immediate]{silence}
 \WarningFilter[layout]{latex}{Reference `LastPage'}
 \WarningFilter[layout]{lastpage}{Rerun to get the references right}
