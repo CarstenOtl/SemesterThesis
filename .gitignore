@@ -1,0 +1,38 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.upa
+*.upb
+*.nav
+*.snm
+*.vrb
+texput.log
+
+# TikZ externalize
+*.dpth
+*.md5
+*.auxlock
+Report/figures/tikzoutput/
+
+# Editor backup files
+*~
+*.bak
+*.swp
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Keep PDFs (do NOT ignore them)
+!*.pdf

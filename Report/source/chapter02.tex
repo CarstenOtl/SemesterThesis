@@ -1,110 +1,205 @@
 % !TeX spellcheck = en_US
-\chapter{I6 Submission Guidelines}%
+\chapter{Related Work}%
+\label{ch:related_work}%
 
-This chapter gives an overview about the expected format of a thesis at the Chair of Robotics, Artificial Intelligence and Real-time systems.
-It mostly focuses on the format on your written thesis.
-For a general overview of the submission guideline please refeer to the  \underline{\href{https://wiki.tum.de/display/I6intern/Thesis+Submission+Guidelines}{I6 Wiki}}.
+This chapter surveys the foundations and recent advances relevant to this thesis.
+It begins with classical robot control and grasp planning, then covers reinforcement learning and sim-to-real transfer, followed by imitation learning and policy distillation, and concludes with the state of the art in dexterous grasping and the simulation frameworks that enable it.
 
-When writing your thesis please use the \code{AIRStudentThesis} template.
-It should be in line with the IN TUM thesis guidelines (last checked: 08/02/2020).
-However, please always reassure that this is still the case. In other subjects, please make sure that the format meets your individual requirements.
-When handing it in, please include an additional copy for your advisor. Moreover make sure your that thesis fulfills the following requirements.
+%% =========================================================================
+\section{Classical Robot Control}%
+\label{sec:classical_control}%
 
-\section{Citations}
+The control of robotic manipulators has a rich history rooted in classical control theory.
+A robot arm with $n$ joints is described by its rigid-body dynamics~\cite{Siciliano2009}:
+%
+\begin{equation}\label{eq:manipulator_dynamics}
+    \boldsymbol{M}(\boldsymbol{q})\ddot{\boldsymbol{q}} + \boldsymbol{C}(\boldsymbol{q}, \dot{\boldsymbol{q}})\dot{\boldsymbol{q}} + \boldsymbol{g}(\boldsymbol{q}) = \boldsymbol{\tau}
+\end{equation}
+%
+where $\boldsymbol{q} \in \mathbb{R}^n$ is the joint configuration, $\boldsymbol{M}$ the inertia matrix, $\boldsymbol{C}$ the Coriolis and centrifugal term, $\boldsymbol{g}$ the gravity vector, and $\boldsymbol{\tau}$ the applied joint torques.
 
-We recommend that you use \href{https://ctan.org/texarchive/bibliography/bibtex/contrib/german/din1505}{\code{alphadin}} citation style when working with bibtex, or \code{alpha} when using biblatex/biber. Your bibliography should look like this:
+\paragraph{Position and torque control.}
+The most common approach to manipulator control is computed torque control, which uses an inverse dynamics model to linearize the system, followed by a PD controller in joint space.
+For a desired trajectory $\boldsymbol{q}_d(t)$, the control law takes the form
+$\boldsymbol{\tau} = \boldsymbol{M}(\boldsymbol{q})(\ddot{\boldsymbol{q}}_d + K_p \boldsymbol{e} + K_d \dot{\boldsymbol{e}}) + \boldsymbol{C}(\boldsymbol{q}, \dot{\boldsymbol{q}})\dot{\boldsymbol{q}} + \boldsymbol{g}(\boldsymbol{q})$,
+where $\boldsymbol{e} = \boldsymbol{q}_d - \boldsymbol{q}$ is the tracking error~\cite{Siciliano2009}.
+While effective for trajectory following, this approach assumes a known dynamics model and does not explicitly account for interaction forces with the environment.
 
-\begin{table}[htb]
-    \begin{tabular}{lp{13.5cm}}
-        $[$BM92$]$ & Besl, P. J. and McKay, N. D. “Method for registration of 3-D shapes”. In: Sensor
-        fusion IV: control paradigms and data structures. Vol. 1611. International Society
-        for Optics and Photonics. 1992, pp. 586–606.\\
-        $[$CM92$]$ & Chen, Y. and Medioni, G. “Object modelling by registration of multiple range
-        images”. In: Image and vision computing 10.3 (1992), pp. 145–155.\\
-    \end{tabular}
-\end{table}
+\paragraph{Impedance control.}
+When a robot must interact with objects or the environment, pure position control can lead to excessive forces.
+Hogan~\cite{Hogan1985} introduced \emph{impedance control}, which regulates the dynamic relationship between the manipulator's motion and the contact forces rather than tracking a trajectory.
+The end-effector behaves as a mass-spring-damper system:
+%
+\begin{equation}\label{eq:impedance}
+    \boldsymbol{F} = M_d(\ddot{\boldsymbol{x}}_d - \ddot{\boldsymbol{x}}) + D_d(\dot{\boldsymbol{x}}_d - \dot{\boldsymbol{x}}) + K_d(\boldsymbol{x}_d - \boldsymbol{x})
+\end{equation}
+%
+where $M_d$, $D_d$, and $K_d$ are the desired inertia, damping, and stiffness, and $\boldsymbol{x}$, $\boldsymbol{x}_d$ are the actual and desired end-effector poses.
+Impedance control is particularly relevant for dexterous manipulation, where fingers must maintain stable contact with objects while accommodating positional uncertainty.
+The Franka Research~3 arm used in this work provides link-side joint torque sensing, enabling Cartesian impedance control without external force-torque sensors.
 
-When quoting an author word-by-word please include a page number in the reference.
+\paragraph{Model predictive control.}
+Model Predictive Control (MPC) extends classical control by solving an optimization problem over a receding horizon at each time step~\cite{Camacho2007}.
+Given a dynamics model $\boldsymbol{x}_{t+1} = f(\boldsymbol{x}_t, \boldsymbol{u}_t)$, MPC computes the action sequence $\boldsymbol{u}_{t:t+H}$ that minimizes a cost function $J = \sum_{k=0}^{H} \ell(\boldsymbol{x}_{t+k}, \boldsymbol{u}_{t+k})$ subject to constraints, and executes only the first action before re-planning.
+Nagabandi et al.~\cite{Nagabandi2019} demonstrated that combining learned neural network dynamics models with MPC can enable dexterous manipulation on a 24-DoF anthropomorphic hand with only four hours of real-world data.
+While MPC can handle complex dynamics, its reliance on an accurate model and the computational cost of online optimization make it challenging for high-frequency control of multi-fingered hands.
 
-\section{Figures}
+%% =========================================================================
+\section{Grasp Planning and Force Closure}%
+\label{sec:grasp_planning}%
 
-Please use vector graphics when including figures or diagrams in your thesis.
-If you create them with \href{https://en.wikipedia.org/wiki/PGF/TikZ}{PGF/TIKZ} or \href{https://inkscape.org/}{Inkscape} it also possible to add texts directly from Latex to ensure a consistent typesetting.
-There is an unwritten rule, saying figures not referenced in your text are unnecessary.
+Grasping is the foundational skill for any manipulation task.
+The classical theory of robotic grasping analyzes grasps through the lens of contact mechanics and force analysis~\cite{Bicchi2000}.
 
-When citing a figure include the reference in the figure's label (including the page number).
+\paragraph{Force closure.}
+A grasp is said to achieve \emph{force closure} if the fingers can exert arbitrary wrenches (forces and torques) on the object through the contact points, thereby resisting any external disturbance~\cite{Ferrari1992}.
+Formally, a set of contact points $\{c_1, \ldots, c_k\}$ with associated contact normals achieves force closure if the convex hull of the primitive wrenches spans $\mathbb{R}^6$.
+Ferrari and Canny~\cite{Ferrari1992} proposed quality metrics based on the largest ball inscribed in the Grasp Wrench Space (GWS), which remains a standard measure of grasp quality.
 
-\section{Math Notation}
+\paragraph{Analytical vs.\ data-driven approaches.}
+Traditional grasp planning computes contact locations analytically by optimizing force-closure metrics over the object's geometry.
+This requires known 3D object models and accurate contact parameters (friction coefficients, contact areas), which limits applicability to novel objects.
+Data-driven approaches have largely supplanted analytical methods for general-purpose grasping.
+DexGraspNet~\cite{Wang2023} generated 1.32 million grasps for over 5,000 objects using a differentiable force-closure estimator, enabling large-scale training of grasp synthesis networks.
+Wu et al.~\cite{Wu2022} combined a conditional variational autoencoder with bilevel optimization to synthesize diverse, physically feasible grasps on novel objects, achieving 86.7\% success across 20 unseen household objects.
 
-When using formulas or pseudocode use the following notation style:
+\paragraph{Dexterous vs.\ parallel-jaw grasping.}
+Most industrial grasping systems use parallel-jaw or suction grippers, which constrain the set of achievable grasps.
+Multi-fingered hands offer far richer grasp taxonomies---encompassing precision grasps, power grasps, and in-hand manipulation---but introduce a much higher-dimensional configuration space.
+For a hand with $n_h$ joints, the grasp planning problem involves searching over $\text{SE}(3) \times \mathbb{R}^{n_h}$, making exhaustive search intractable.
+UniDexGrasp++~\cite{Wan2023} addressed this by decomposing the problem into a geometry-aware grasp proposal stage followed by goal-conditioned policy execution, achieving strong generalization across novel objects with a two-stage curriculum.
 
-\begin{table}[htb]
-    \begin{tabular}{p{2.9cm}lp{5.1cm}p{3.8cm}}
-        \toprule
-        \textbf{Type} & \textbf{Example} & \textbf{Code (Math Mode)} & \textbf{Comment} \\
-        \midrule
+%% =========================================================================
+\section{Reinforcement Learning}%
+\label{sec:rl}%
 
-        \multicolumn{4}{l}{\textbf{General items}} \\
-        \midrule
-        Scalars	& $a$ & \code{a} & lower case, italic \\
-        Functions & $\textrm{sin}(x)$ & \code{\textbackslash textrm{sin}(x)} & regular text \\
-        Units & 42\,Hz & \code{42\textbackslash,\textbackslash textrm{Hz}} & half-space between number and unit; unit in regular text \\
-        Angles & $\alpha$ & \code{\textbackslash alpha} & Greek letters \\
-        Absolute value & $\mid a \mid$ & \code{\textbackslash mid a \textbackslash mid} \\
-        Modulo & mod & \code{\textbackslash textrm\{mod\}} \\
-        \midrule
-        \multicolumn{4}{l}{\textbf{Vectors and matrices}}\\
-        \midrule
-        Vectors	& $\boldsymbol{v}$ & \code{\textbackslash boldsymbol\{v\}} & lower case, italic, bold \\
-        Matrices & $\boldsymbol{M}$ & \code{\textbackslash boldsymbol\{M\}} & upper case, italic, bold \\
-        Variable indices & $\boldsymbol{x}_i$ & \code{\textbackslash boldsymbol\{x\}\_i} \\
-        Static indices & $\boldsymbol{x}_\textrm{min}$ & \code{\textbackslash boldsymbol\{x\}\_\textbackslash textrm\{min\}} \\
-        Unit vectors & $\textbf{e}_x$ & \code{\textbackslash textbf\{e\}\_x} \\
-        Identity matrices & $\textbf{Id}_n$ & \code{\textbackslash textbf\{Id\}\_n}	\\
-        Transpose & $\boldsymbol{x}^\textrm{T}$ & \code{\textbackslash boldsymbol\{x\}\^{}\textbackslash textrm\{T\} } & T in superscript and regular font \\
-        Vector product (cross product) & $\times$ & \code{\textbackslash times} \\
-        Dot product	& $\cdot$ & \code{\textbackslash cdot} \\
-        \midrule
-        \multicolumn{4}{l}{\textbf{Sets and sequences}}\\
-        \midrule
-        Sets & $A = \{ 1, 2, 3 \}$ & \code{A = \textbackslash \{ 1, 2, 3 \textbackslash \}} & upper case, italic \\
-        Sequence & $\mathcal{A} = \langle 1,2,3 \rangle$ & \code{\textbackslash mathcal\{A\} = \textbackslash langle 1,2,3 \textbackslash rangle} \\
-        Set without	& $A \backslash \{ e \}$ & \code{A \textbackslash backslash \textbackslash \{ e \textbackslash \}} \\
-        Unification	& $A \cup \{ e \}$ & \code{A \textbackslash cup \textbackslash \{ e \textbackslash \}} & \\
+Reinforcement learning (RL) provides a framework for learning sequential decision-making through trial and error~\cite{SuttonBarto2018}.
+An RL problem is formalized as a Markov Decision Process (MDP) defined by the tuple $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ the action space, $P(s'|s,a)$ the transition dynamics, $R(s,a)$ the reward function, and $\gamma \in [0,1)$ the discount factor.
+The agent seeks a policy $\pi(a|s)$ that maximizes the expected cumulative discounted reward $J(\pi) = \mathbb{E}_\pi\left[\sum_{t=0}^{\infty} \gamma^t R(s_t, a_t)\right]$.
 
-        \bottomrule
-    \end{tabular}
-\end{table}
+\paragraph{Policy gradient methods.}
+For continuous action spaces typical of robotics, policy gradient methods parameterize the policy $\pi_\theta$ and optimize $J$ by gradient ascent:
+$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\pi_\theta}\left[\sum_t \nabla_\theta \log \pi_\theta(a_t|s_t) \hat{A}_t\right]$,
+where $\hat{A}_t$ is an estimate of the advantage function.
+Trust Region Policy Optimization (TRPO)~\cite{Schulman2015} constrains the policy update to a trust region to ensure monotonic improvement.
+Proximal Policy Optimization (PPO)~\cite{Schulman2017} simplifies this by using a clipped surrogate objective:
+%
+\begin{equation}\label{eq:ppo}
+    L^{\text{CLIP}}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t,\;\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]
+\end{equation}
+%
+where $r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_\text{old}}(a_t|s_t)$ is the probability ratio and $\epsilon$ is the clipping parameter.
+PPO has become the dominant algorithm for robotic RL due to its stability and ease of implementation.
+It is used throughout the dexterous manipulation literature~\cite{Handa2024, Andrychowicz2020, Petrenko2023} and in this work for training the privileged teacher policy.
 
-Always use single letters for variable names.
+\paragraph{Deep RL for robotics.}
+The combination of deep neural networks with RL---deep RL (DRL)---has enabled learning of complex behaviors from high-dimensional sensory inputs~\cite{Mnih2015}.
+In robotics, DRL has been applied to locomotion, navigation, and manipulation tasks~\cite{Tang2024}.
+However, robotics poses specific challenges: real-world interaction is slow, expensive, and potentially destructive; reward functions are difficult to specify; and the dynamics are often partially observable.
+These challenges have driven the adoption of simulation-based training with subsequent transfer to real hardware.
 
-\section{Length}
+%% =========================================================================
+\section{Sim-to-Real Transfer}%
+\label{sec:sim2real}%
 
-Stundents often ask for a required number of pages.
-However, there are no fixed page limits or requirements for bachelor's or master's theses.
-As a point of reference, most bachelor's have around 40 to 60 pages and while master's thesis usually reach 60 to 80 pages (including abstract, table-of-contents, lists of figures, lists of tables and bibliography).
-If your thesis is going to be longer than 100 pages, your advisor and/or supervisor will most likely not read all of it.
-Detailed information can be found in your module handbook (see \url{campus.tum.de}).
+Training RL policies entirely in simulation circumvents the cost and safety issues of real-world learning, but introduces the \emph{sim-to-real gap}---discrepancies between simulated and real physics, perception, and actuation.
 
-\section{Cover}
+\paragraph{Domain randomization.}
+The most widely adopted strategy for bridging the sim-to-real gap is \emph{domain randomization} (DR), which varies simulation parameters (friction, mass, lighting, sensor noise, actuator delays) across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
+The hypothesis is that if the real world falls within the distribution of randomized simulations, the policy will generalize without fine-tuning.
+Peng et al.~\cite{Peng2018} demonstrated that randomizing dynamics parameters enables zero-shot sim-to-real transfer for locomotion and manipulation tasks.
 
-The main directory of the \code{AIRStudentThesis} template contains two \code{*.tex}: \code{main.tex} and \code{cover.tex}.
-Start by using \code{main.tex} to write your thesis.
-Once you have completed your work and you know how large the spine of the book will be you can use \code{cover.tex} to generate a matching cover for your printed copies.
+\paragraph{Automatic domain randomization.}
+Manual selection of randomization ranges is tedious and error-prone.
+Automatic Domain Randomization (ADR) automates this process by gradually widening parameter ranges based on policy performance~\cite{OpenAI2020}.
+The method maintains lower and upper bounds for each randomization dimension and adjusts them using performance thresholds, creating a natural curriculum from easy to difficult conditions.
+Handa et al.~\cite{Handa2024} extended ADR to vectorized GPU-based environments (VADR), enabling efficient scaling to thousands of parallel simulation instances.
 
-\section{CD or DVD}
+\paragraph{System identification.}
+An alternative to domain randomization is \emph{system identification}, which fits simulation parameters to match real-world behavior.
+Lin et al.~\cite{Lin2025} introduced an automated real-to-sim tuning module that uses less than four minutes of real-world data to calibrate simulator parameters, significantly reducing the sim-to-real gap for bimanual dexterous manipulation on humanoid robots.
+Hybrid approaches that combine system identification with moderate domain randomization often achieve the best transfer results.
 
-\textbf{Note:} A CD or DVD is not required for the official copy you submit to the faculty or your program coordinator.
-If in doubt check your program's website!
+%% =========================================================================
+\section{Imitation Learning and Policy Distillation}%
+\label{sec:il}%
 
-\vspace{0.5cm}
+While RL can discover optimal behaviors from scratch, it requires extensive exploration and careful reward engineering.
+Imitation learning (IL) offers an alternative by learning from expert demonstrations.
 
-For your advisor's/ supervisor's copy of your thesis please add a CD or DVD on the last inner page of your thesis including:
+\paragraph{Behavioral cloning.}
+The simplest form of IL is \emph{behavioral cloning} (BC), which treats policy learning as supervised regression: given a dataset of state-action pairs $\{(s_i, a_i^*)\}$ collected under an expert policy $\pi^*$, the learner minimizes $\mathbb{E}[\|\pi_\theta(s) - a^*\|^2]$.
+Pomerleau~\cite{Pomerleau1988} pioneered this approach with ALVINN, an autonomous driving system trained from human demonstrations.
+BC is straightforward but suffers from \emph{compounding errors}: small deviations from the expert's state distribution lead to states not covered by the training data, causing the policy to drift further and fail~\cite{Ross2011}.
 
-\begin{enumerate}
-    \item A digital copy of your thesis (including its Latex sources)
-    \item The code you programmed
-    \item The dataset(s) you used for your evaluation results
-\end{enumerate}
+\paragraph{DAgger.}
+Ross et al.~\cite{Ross2011} introduced \emph{Dataset Aggregation} (DAgger) to address the compounding error problem.
+DAgger iteratively executes the current student policy $\hat{\pi}$ in the environment, queries the expert $\pi^*$ for the correct action at each visited state, and aggregates the new data with the existing dataset for retraining.
+After $N$ iterations, DAgger provably finds a policy with performance bounded by $\epsilon_N + O(1/N)$, where $\epsilon_N$ is the best achievable loss on the aggregated dataset.
+DAgger is the distillation method used in DextrAH-RGB~\cite{Singh2025} for transferring privileged grasping policies to vision-based students.
 
-As a rule of thumb, the disk should include everything required to reproduce your results.
+\paragraph{SafeDAgger.}
+While DAgger solves the distribution shift problem, it queries the expert at every visited state, which is wasteful when the student already performs well.
+More critically, it does not prevent the student from visiting dangerous states during rollouts.
+Zhang and Cho~\cite{Zhang2016} proposed \emph{SafeDAgger}, which trains a binary safety classifier $D_\psi(s) \in \{0, 1\}$ alongside the student policy.
+The classifier predicts whether the student's action at state $s$ is ``safe'' (close to the expert's action) or ``dangerous'' (far from it).
+During data collection, the system switches from the student to the expert whenever $D_\psi$ predicts danger, and back to the student when it predicts safety.
+This mechanism reduces unnecessary expert queries and prevents the student from executing actions in states where it is likely to fail, creating an implicit curriculum from safe to progressively more challenging states.
+
+\paragraph{DexSafeDagger.}
+Zhang~\cite{ChiZhang2026} extended the SafeDAgger framework specifically for dexterous manipulation by introducing a \emph{Q-value-based risk predictor}.
+Rather than relying solely on action disagreement between teacher and student, DexSafeDagger uses a learned Q-value function from the teacher's RL training to estimate the risk of each state.
+The teacher intervenes when either the action disagreement exceeds a threshold or the Q-value indicates a high-risk state.
+This approach reduced unsafe episodes by up to 80\% during early training stages compared to vanilla DAgger, while maintaining comparable task success rates.
+DexSafeDagger is particularly relevant for dexterous hands, where unsafe exploration can cause hardware damage or lead to irrecoverable failure states such as dropping the object.
+
+\paragraph{Privileged teacher-student distillation.}
+A powerful paradigm that combines RL and IL is \emph{privileged teacher-student distillation}~\cite{Levine2016}.
+The idea is to train a teacher policy via RL with access to privileged information---ground-truth object poses, contact forces, full state vectors---that would be unavailable on a real robot.
+This teacher can learn highly effective behaviors because its observation space is compact, low-noise, and fully informative.
+The teacher's behavior is then distilled into a student policy that operates from realistic, deployable sensor inputs (e.g., RGB images).
+This decomposition separates the challenges of learning \emph{what} to do (handled by RL with privileged info) from learning \emph{how} to perceive (handled by distillation from raw sensory data).
+Lum et al.~\cite{Lum2024} and Singh et al.~\cite{Singh2025} demonstrated this approach for dexterous arm-hand grasping, with the teacher using geometric fabrics and the student operating from depth or RGB images.
+Huang et al.~\cite{Huang2025} further showed that the student can surpass the teacher's performance by combining imitation pre-training with online RL fine-tuning, addressing the constrained performance ceiling of pure imitation.
+
+%% =========================================================================
+\section{Dexterous Grasping and Manipulation}%
+\label{sec:dexterous_manip}%
+
+Dexterous manipulation with multi-fingered hands has advanced rapidly in recent years, driven by improvements in simulation, GPU-accelerated training, and sim-to-real transfer.
+
+\paragraph{Early milestones.}
+Kumar et al.~\cite{Kumar2016} demonstrated model-based RL for dexterous manipulation using locally linear models, achieving contact-rich tasks on a 24-DoF hand.
+The landmark work by Andrychowicz et al.~\cite{Andrychowicz2020} at OpenAI showed that a Shadow Dexterous Hand could learn to solve a Rubik's Cube through massive-scale RL in simulation with domain randomization, establishing that sim-to-real transfer is viable even for extremely complex manipulation.
+
+\paragraph{GPU-accelerated training.}
+The introduction of Isaac Gym~\cite{Makoviychuk2021} enabled thousands of parallel simulation environments on a single GPU, reducing training times from weeks to hours.
+Handa et al.~\cite{Handa2024} leveraged this with DeXtreme, combining vectorized ADR with a vision-based pose estimator to achieve robust in-hand cube reorientation on a real Allegro Hand---using only commodity hardware and no motion capture.
+Petrenko et al.~\cite{Petrenko2023} introduced DexPBT, which applies population-based training to dexterous tasks, automatically discovering reward weights and hyperparameters that yield diverse manipulation skills including bimanual coordination.
+
+\paragraph{Arm-hand grasping.}
+While much early work focused on in-hand manipulation with a fixed wrist, practical applications require coordinated arm-hand control---reaching for objects, grasping them, and transporting them.
+DextrAH-G~\cite{Lum2024} addressed this with a 23-motor arm-hand system, combining geometric fabrics~\cite{Ratliff2023} with RL to achieve fast, safe dexterous grasping from depth images.
+Geometric fabrics provide a structured control layer that guarantees collision avoidance and smooth motions, while the RL policy operates on top of this layer to learn task-specific behavior.
+DextrAH-RGB~\cite{Singh2025} extended this to RGB-only input, demonstrating the first successful sim-to-real transfer of an end-to-end RGB-based dexterous grasping policy.
+The key innovations include training the privileged teacher as a Fabric-Guided Policy (FGP) and using photorealistic tiled rendering for distillation.
+
+\paragraph{Positioning of this work.}
+This thesis builds on the DextrAH-RGB framework but makes two significant departures.
+First, the privileged teacher is trained as a standard RL policy without geometric fabrics, simplifying the system and enabling the use of Isaac Lab's manager-based environment API with custom assets.
+Second, the distillation step replaces DAgger with SafeDAgger, incorporating safety-aware intervention during training.
+This combination has not been explored in prior work on dexterous grasping.
+
+%% =========================================================================
+\section{Simulation Frameworks}%
+\label{sec:sim_frameworks}%
+
+Modern robot learning relies heavily on physics simulators for data generation.
+
+\paragraph{Isaac Gym and Isaac Lab.}
+Isaac Gym~\cite{Makoviychuk2021} introduced GPU-accelerated rigid-body and articulated-body simulation with end-to-end GPU data flow, eliminating the CPU-GPU bottleneck that limited earlier simulators.
+It supports thousands of parallel environments, enabling billion-step RL training in hours.
+Isaac Lab (formerly Orbit~\cite{Mittal2023}) builds on Isaac Sim and provides a modular, extensible framework for robot learning with two environment design paradigms: a direct API for maximum control, and a \emph{manager-based} API that structures environments into observation, action, reward, termination, and curriculum managers.
+This thesis uses the manager-based API, which facilitates rapid prototyping and clean separation of concerns, though it differs from the direct API used in the published DextrAH-RGB implementation.
+
+%

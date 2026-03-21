@@ -5,26 +5,32 @@
               ,optBlackRefs%          black references to reduce number of colored pages
               %,optCMYK%              color model
               ,optBiber%              bibliography tool
-              ,optBibstyleAlphabetic% bibliography style
+              %,optBibtex%
+              ,optBibstyleNumeric%    bibliography style (IEEE-like [1] format)
               ,optCenterEquations%    alignment of equations
               ,optEnglish%            language
               %,optTikzExternalize%   compiles faster for large tikz images
               ]{AIRlatex}
 %
+% Override class defaults for numeric citation style
+\ExecuteBibliographyOptions{defernumbers=false}%
+\ExecuteBibliographyOptions{sorting=none}% Sort references by order of first citation
+%
 % Load additional LaTeX packages - remove what you do not need
 \usepackage{algorithm}%
 \usepackage{algorithmicx}%
 \usepackage{booktabs}%
+\usepackage[printonlyused]{acronym}% Abbreviation list
 %
 % Set paths
 \graphicspath{{figures/}}%
+%\addbibresource{source/literature.bib}%
 \addbibresource{source/literature.bib}%
-\addbibresource{source/literature1.bib}%
 %
 % Define additional commands
 \newcommand{\code}[1]{\texttt{#1}}%
 \newcommand{\degree}[0]{^\circ}%
-%
+%\left( \right) 
 \begin{document}%
 % Titlepage
 % ---------
@@ -32,7 +38,9 @@
 % Info: separate multiple supervisors by \newline
 %\AIRstudentthesisTitlePageCustomDiplomarbeit{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 %\AIRstudentthesisTitlePageCustomBachelorsThesis{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
-\AIRstudentthesisTitlePageCustomSemesterThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Zhang Chi, M.Sc.}{\AIRutilsDate{15}{04}{2025 }}%
+
+\AIRstudentthesisTitlePageCustomSemesterThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Zhang Chi, M.Sc.}{\AIRutilsDate{15}{04}{2025}}%
+
 %\AIRstudentthesisTitlePageCustomIDP{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 %\AIRstudentthesisTitlePageCustomMastersThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Zhang Chi, M.Sc.}{\AIRutilsDate{15}{04}{2026}}%
 %
@@ -43,10 +51,52 @@
 % Content
 % -------
 \AIRstudentthesisPrintTableOfContents%
+%
+% List of Figures and Tables
+% --------------------------
+\listoffigures%
+\cleardoublepage%
+\listoftables%
+\cleardoublepage%
+%
+% List of Abbreviations
+% ---------------------
+\chapter*{List of Abbreviations}%
+\addcontentsline{toc}{chapter}{List of Abbreviations}%
+\begin{acronym}[MBRL]
+    \acro{RL}{Reinforcement Learning}
+    \acro{DRL}{Deep Reinforcement Learning}
+    \acro{IL}{Imitation Learning}
+    \acro{BC}{Behavioral Cloning}
+    \acro{PPO}{Proximal Policy Optimization}
+    \acro{TRPO}{Trust Region Policy Optimization}
+    \acro{MDP}{Markov Decision Process}
+    \acro{MPC}{Model Predictive Control}
+    \acro{DR}{Domain Randomization}
+    \acro{ADR}{Automatic Domain Randomization}
+    \acro{DoF}{Degree of Freedom}
+    \acro{FR3}{Franka Research 3}
+    \acro{FGP}{Fabric-Guided Policy}
+    \acro{GWS}{Grasp Wrench Space}
+    \acro{GSR}{Grasp Success Rate}
+    \acro{UER}{Unsafe Episode Rate}
+    \acro{TQR}{Teacher Query Rate}
+    \acro{RGB-D}{Red Green Blue -- Depth}
+    \acro{CNN}{Convolutional Neural Network}
+    \acro{MLP}{Multilayer Perceptron}
+    \acro{LSTM}{Long Short-Term Memory}
+    \acro{ROS2}{Robot Operating System 2}
+    \acro{USD}{Universal Scene Description}
+    \acro{URDF}{Unified Robot Description Format}
+\end{acronym}
+\cleardoublepage%
+%
 \mainmatter%
 \include{source/chapter01}%
 \include{source/chapter02}%
 \include{source/chapter03}%
+\include{source/chapter04}%
+\include{source/chapter05}%
 %
 % Appendix
 % --------

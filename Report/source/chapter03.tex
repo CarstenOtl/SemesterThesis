@@ -1,141 +1,299 @@
 % !TeX spellcheck = en_US
-\chapter{Examples}%
+\chapter{Methods}%
+\label{ch:methods}%
 
-This chapter shows a number of examples that might be useful when you have not worked with LaTex or TUMlatex before.
+This chapter presents the methodology used in this work.
+It describes the hardware platform, the simulation environment built in Isaac Lab, the privileged teacher policy trained via reinforcement learning, and the two distillation approaches---DAgger and SafeDAgger---used to transfer the teacher's behavior to a vision-based student policy.
 
-Testing references 
-from literature 1:
-	\cite{ChiZhang2026}  
-from literature 
-	\cite{chen1992object}
+%% =========================================================================
+\section{System Overview}%
+\label{sec:system_overview}%
 
-\section{Figures}
-This paragraph shows the differences of pixel based images and vector graphics.
-As you can see in figure~\cref{fig:MyImage} the \code{*.png} image becomes quite blurry when scaled to large, while the other, vector based images look flawless at any zoom rate.%
+The system follows a two-stage privileged teacher-student paradigm, illustrated in~\cref{fig:system_overview}.
+In the first stage, a \emph{privileged teacher policy} is trained in simulation via Proximal Policy Optimization (PPO).
+The teacher receives full state information---ground-truth object poses, joint positions, velocities, and contact forces---that would be unavailable on real hardware.
+In the second stage, the teacher's behavior is \emph{distilled} into a vision-based student policy that operates from RGB images.
+This distillation is performed using either DAgger or SafeDAgger, and the resulting student policies are compared in terms of task performance and training safety.
+
+% TODO: Add system overview figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=\textwidth]{system_overview}
+%     \caption{System overview: privileged teacher training (left) and vision-based student distillation (right).}
+%     \label{fig:system_overview}
+% \end{figure}
+
+\blindtext % PLACEHOLDER: Expand on the overall pipeline, key design decisions, and how phases connect.
+
+%% =========================================================================
+\section{Hardware Platform}%
+\label{sec:hardware}%
+
+The robotic platform consists of a Franka Research~3 (FR3) arm equipped with an Agile Hand, forming a coordinated arm-hand system.
+
+\subsection{Franka Research~3 Arm}%
+\label{sec:fr3}%
+
+\blindtext % PLACEHOLDER: FR3 specs — 7 DoF, joint torque sensing, impedance control capabilities, workspace, payload. Describe why FR3 was chosen.
+
+\subsection{Agile Hand}%
+\label{sec:agile_hand}%
+
+\blindtext % PLACEHOLDER: Agile Hand specs — number of fingers, DoF per finger, thumb abduction DoF, total 16 DoF, tendon-driven vs. direct drive, max grip force, finger workspace. Describe the specific configuration used.
+
+\subsection{Sensor Setup}%
+\label{sec:sensors}%
+
+\blindtext % PLACEHOLDER: Intel RealSense D405 specs — resolution, depth range, mounting position (eye-in-hand or external), frame rate. Describe how it is used in sim vs. real.
+
+%% =========================================================================
+\section{Simulation Environment}%
+\label{sec:sim_environment}%
+
+All training and distillation is performed in NVIDIA Isaac Lab, a GPU-accelerated simulation framework built on Isaac Sim.
+This section describes the environment design, asset integration, and key configuration choices.
+
+\subsection{Isaac Lab Manager-Based Architecture}%
+\label{sec:manager_based}%
+
+Isaac Lab provides two paradigms for environment design: a \emph{direct} API and a \emph{manager-based} API~\cite{Mittal2023}.
+This work uses the manager-based API, which structures the environment into modular components:
+
+\begin{itemize}
+    \item \textbf{Observation Manager:} Defines the observation spaces for both actor (policy) and critic (value function). The teacher receives privileged observations, while the student receives image-based observations.
+    \item \textbf{Action Manager:} Maps policy outputs to joint position targets for the arm and hand.
+    \item \textbf{Reward Manager:} Computes a weighted sum of reward terms at each time step.
+    \item \textbf{Termination Manager:} Defines episode termination conditions (e.g., object dropped, time limit reached).
+    \item \textbf{Curriculum Manager:} Optionally adjusts task difficulty during training.
+\end{itemize}
+
+\blindtext % PLACEHOLDER: Discuss why manager-based was chosen over direct API, trade-offs, how it differs from the DextrAH-RGB code which uses direct API. Any limitations encountered.
+
+\subsection{Asset Integration}%
+\label{sec:asset_integration}%
+
+A central challenge was integrating the Agile Hand and FR3 arm as a combined articulated asset in Isaac Lab.
+
+\blindtext % PLACEHOLDER: Describe the process of importing the robot model — URDF/USD conversion, joint limits, collision meshes, contact parameters, mass/inertia properties. Any modifications needed for simulation stability. How the combined arm-hand asset differs from the Allegro + Kuka setup used in the original DextrAH-RGB.
+
+\subsection{Object Set}%
+\label{sec:object_set}%
+
+\blindtext % PLACEHOLDER: Describe the objects used for training and evaluation — how many, what types (YCB objects? industrial parts? custom?), mesh sources, randomization of object properties (mass, friction, scale).
+
+\subsection{Environment Configuration}%
+\label{sec:env_config}%
+
+\blindtext % PLACEHOLDER: Number of parallel environments, simulation frequency (Hz), control frequency (Hz), physics engine settings (PhysX parameters, solver iterations, time step), GPU requirements.
+
+%% =========================================================================
+\section{Privileged Teacher Policy}%
+\label{sec:teacher_policy}%
+
+The teacher policy is trained via reinforcement learning with access to privileged state information that would be unavailable at deployment time.
+
+\subsection{Observation Space}%
+\label{sec:teacher_obs}%
+
+The teacher's observation vector consists of the following components:
+
+\blindtext % PLACEHOLDER: List all observation components in a table or itemized list — joint positions (arm + hand), joint velocities, object pose (position + quaternion), object velocity, relative object-to-palm distance, fingertip positions, contact flags/forces, goal specification (if any), previous action. Include dimensionality of each component and total observation dimension.
+
+% TODO: Add observation space table
+% \begin{table}[htb]
+%     \centering
+%     \caption{Privileged teacher observation space.}
+%     \label{tab:teacher_obs}
+%     \begin{tabular}{lll}
+%         \toprule
+%         \textbf{Component} & \textbf{Dimension} & \textbf{Description} \\
+%         \midrule
+%         Joint positions & ... & ... \\
+%         ...
+%         \bottomrule
+%     \end{tabular}
+% \end{table}
+
+\subsection{Action Space}%
+\label{sec:action_space}%
+
+\blindtext % PLACEHOLDER: Action space definition — joint position targets for arm (7 DoF) and hand (16 DoF), action scaling, action clipping, action smoothing/filtering (exponential moving average?), control mode (position control, impedance control). Total action dimension.
+
+\subsection{Reward Design}%
+\label{sec:reward_design}%
+
+The reward function is a weighted sum of multiple terms designed to encourage successful grasping while penalizing undesirable behaviors.
+The per-step reward is computed as:
 %
-\begin{figure}[htb]%
-    \centering%
-    %
-    % Including .png
-    \includegraphics[width=40mm]{figures/ImagePNG.png}%
-    %
-    \hspace*{5mm}%
-    %
-    % Including .pdf
-    \includegraphics[width=40mm]{figures/ImagePDF.pdf}\par%
-    %
-    % Including .tikz
-    \begingroup%
-    %\AIRtikzExternalizeSkipNext%
-    \resizebox{40mm}{!}{\input{figures/ImageTIKZ.tikz}}%
-    \endgroup%
-    %
-    \hspace*{5mm}%
-    %
-    % Including .pdf_tex
-    \begingroup%
-    \def\svgwidth{40mm}%
-    \fontsize{25}{25}\selectfont%
-    \input{figures/ImagePDFTEX.pdf_tex}%
-    \endgroup%
-    %
-    \caption{\AIRlangGerEng{Beschreibung des Bilds}{Image description}.}%
-    \label{fig:MyImage}%
-\end{figure}%
-
-\section{Tables}
-
-Tables can be referred to in the same way as figures.
-The four letters \code{[htbp]} after the \code{\textbackslash begin\{table\}} statement indicate the placement of the table environment as listed in table~\ref{tab:placement-options}, where the first letter is the preferred position, the second one the next best alternative and so on.
-
-\begin{table}[htb]%
-    \centering%
-    \begin{tabular}{ll}
-        \toprule
-        Letter & Placement \\
-        \midrule
-        \code{h} & here \\
-        \code{t} & top of the page \\
-        \code{b} & bottom of the page \\
-        \code{p} & standalone page \\
-        \bottomrule
-    \end{tabular}
-    \caption{Placement options for floating environments.}
-    \label{tab:placement-options}%
-\end{table}
-
-We recommend to use the \code{\textbackslash toprule}, \code{\textbackslash midrule} and \code{\textbackslash bottomrule} commands from the \code{booktabs} package to generate nice looking tables.
-
-\section{Citations}
-
-This sentence is referring to a single source \cite{besl1992method}.
-Sentence number two has a single source with a page number \cite[page 123f.]{chen1992object}
-The statement in this last sentence is even supported by multiple sources \cite{choset2005principles, thrun2005probabilistic}.
-
-\section{Equations}
-
-Besides of LaTeX general math mode, that allows you to put some formulas like $a^2 + b^2 = c^2$ directly in your paragraph, we can also use an enumerated, standalone environment for more complex statements, such as Equation~\ref{eq:equivalence-of-mass-and-energy}:
-
-\begin{equation}\label{eq:equivalence-of-mass-and-energy}
-E = m c^2
+\begin{equation}\label{eq:reward}
+    r_t = \sum_{i} w_i \cdot r_i(s_t, a_t)
 \end{equation}
-
-\section{Algorithms}
-
-When writing your thesis in the field of computer science you might need to include algorithms in your thesis.
-The \code{algorithm} and \code{algorithmicx} offer a floating environment for pseudocode as shown in Algorithm~\ref{alg:bubble-sort}.
-
-\begin{algorithm}[htb]%
-    \caption{A possible implementation of the bubble sort algorithm}
-    \begin{algorithmic}%
-        \State \textbf{Require} Array $A$
-        \State $n \rightarrow \textrm{size}(A)$
-        \State \textbf{Repeat}
-        \State\indent $s \rightarrow \code{false}$
-        \State\indent \textbf{for} ($i \rightarrow 0$; $i<n-1$; $i \rightarrow i+1$)
-        \State\indent\indent \textbf{if} $A_i$ > $A_{i+1}$
-        \State\indent\indent\indent $\textrm{swap}(A_{i}, A_{i+1})$
-        \State\indent\indent\indent $s \rightarrow \code{true}$
-        \State \textbf{While} $s$
-    \end{algorithmic}%
-    \label{alg:bubble-sort}
-\end{algorithm}%
-
-\section{Plots}
-
-Plots might appear to be just another kind of images, however, \textit{tikz} allows you to define them right in your LaTeX code, as done in figures~\ref{fig:PlotTwoDim} and \ref{fig:PlotThreeDim}.
-
-\begin{figure}[htb]%
-    \centering%
-    \input{figures/plot_two_dim.tikz}%
-    \caption{Title of the 2D plot (using pgfplots).}%
-    \label{fig:PlotTwoDim}%
-\end{figure}%
 %
-\begin{figure}[htb]%
-    \centering%
-    \input{figures/plot_three_dim.tikz}%
-    \caption{Title of the 3D plot (using pgfplots).}%
-    \label{fig:PlotThreeDim}%
-\end{figure}%
+where $w_i$ are scalar weights and $r_i$ are individual reward terms.
+The reward terms used in this work are:
 
-\section{Sections}%
+\blindtext % PLACEHOLDER: List each reward term with its formula, weight, and purpose. E.g.:
+% - Reaching reward: encourages end-effector to approach the object
+% - Grasp reward: rewards fingertip contact with the object
+% - Lift reward: rewards lifting the object above a threshold height
+% - Action penalty: penalizes large or jerky actions
+% - Orientation reward: rewards desired object orientation (if applicable)
+% - Drop penalty: negative reward when object falls
+% Include the actual weight values used.
 
-Of course it is also possible to define deeper levels of sections. Let's have a look at some \code{subsections} and \code{subsubsections}.
-However, when writing you thesis, try to avoid deeply nested structures.
+% TODO: Add reward terms table
+% \begin{table}[htb]
+%     \centering
+%     \caption{Reward terms and weights.}
+%     \label{tab:rewards}
+%     \begin{tabular}{llll}
+%         \toprule
+%         \textbf{Term} & \textbf{Weight} & \textbf{Formula} & \textbf{Purpose} \\
+%         \midrule
+%         ... & ... & ... & ... \\
+%         \bottomrule
+%     \end{tabular}
+% \end{table}
+
+\blindtext % PLACEHOLDER: Discuss how the reward terms were designed/iterated. What reward shaping challenges were encountered? How do these rewards differ from the original DextrAH-RGB rewards?
+
+\subsection{Network Architecture}%
+\label{sec:teacher_architecture}%
+
+\blindtext % PLACEHOLDER: Describe the teacher policy network — MLP layers, hidden dimensions, activation functions, separate actor/critic networks or shared backbone. Value function architecture. Any recurrence (LSTM) or just feedforward?
+
+\subsection{Training Procedure}%
+\label{sec:training_procedure}%
+
+The teacher is trained using Proximal Policy Optimization (PPO)~\cite{Schulman2017} with the clipped surrogate objective.
+
+\blindtext % PLACEHOLDER: PPO hyperparameters — learning rate, number of epochs per update, minibatch size, clip parameter epsilon, discount factor gamma, GAE lambda, entropy coefficient, value function coefficient. Number of parallel environments. Total training steps/time. Training hardware (GPU model). Training curves description (convergence behavior). Any curriculum used?
+
+% TODO: Add training curve figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{training_curve_teacher}
+%     \caption{Teacher policy training curve: mean episode reward over training steps.}
+%     \label{fig:training_curve_teacher}
+% \end{figure}
+
+\subsection{Domain Randomization}%
+\label{sec:domain_randomization}%
+
+To improve robustness and facilitate potential sim-to-real transfer, several simulation parameters are randomized during training.
+
+\blindtext % PLACEHOLDER: List randomized parameters — object mass, friction, scale, initial pose; joint friction/damping; observation noise; action delay; gravity perturbations. Randomization ranges for each. Was ADR used or fixed uniform ranges?
+
+%% =========================================================================
+\section{Vision-Based Student Policy}%
+\label{sec:student_policy}%
+
+The student policy replaces the teacher's privileged state observations with RGB image input, enabling deployment on real hardware with only camera feedback.
+
+\subsection{Student Observation Space}%
+\label{sec:student_obs}%
+
+\blindtext % PLACEHOLDER: Student observations — RGB image resolution, number of cameras, any proprioceptive signals still included (joint positions?), image preprocessing (normalization, resizing, stacking). How are images rendered in sim (tiled rendering? photorealistic rendering?).
+
+\subsection{Student Network Architecture}%
+\label{sec:student_architecture}%
+
+\blindtext % PLACEHOLDER: CNN encoder architecture (ResNet? Custom convolutions? Pre-trained backbone?), feature dimension, MLP head, how proprioceptive inputs are fused with visual features. Total parameter count.
+
+\subsection{DAgger Distillation}%
+\label{sec:dagger_distillation}%
+
+The baseline distillation method follows the DAgger algorithm~\cite{Ross2011} as used in DextrAH-RGB~\cite{Singh2025}.
+The procedure is as follows:
+
+\begin{enumerate}
+    \item Execute the current student policy $\hat{\pi}$ in the environment to collect trajectories.
+    \item At each visited state $s_t$, query the privileged teacher $\pi^*$ for the expert action $a_t^* = \pi^*(s_t)$.
+    \item Aggregate the new data $\{(o_t, a_t^*)\}$ with the existing dataset $\mathcal{D}$, where $o_t$ is the student's RGB observation.
+    \item Retrain the student policy on the aggregated dataset $\mathcal{D}$ via supervised regression.
+    \item Repeat for $N$ iterations.
+\end{enumerate}
+
+\blindtext % PLACEHOLDER: DAgger-specific hyperparameters — number of iterations, rollout length per iteration, dataset size, training epochs per iteration, learning rate, loss function, beta (mixing ratio between teacher and student rollouts). How was the initial dataset collected (pure teacher rollouts)?
+
+\subsection{SafeDAgger Distillation}%
+\label{sec:safedagger_distillation}%
+
+SafeDAgger~\cite{Zhang2016} extends DAgger by introducing a learned safety classifier that determines when the teacher should intervene during student rollouts.
+This reduces unnecessary teacher queries and prevents the student from visiting dangerous states.
+
+\subsubsection{Safety Classifier}%
+\label{sec:safety_classifier}%
+
+A binary classifier $D_\psi: \mathcal{S} \to \{0, 1\}$ is trained alongside the student policy.
+The classifier predicts whether the student's action at a given state is ``safe'' (close to the teacher's action) or ``dangerous'' (far from it):
 %
-\subsection{Subsection 1}%
-\blindtext%
+\begin{equation}\label{eq:safety_label}
+    y_t = \begin{cases}
+        1 & \text{if } \| \hat{\pi}(o_t) - \pi^*(s_t) \| \leq \delta \\
+        0 & \text{otherwise}
+    \end{cases}
+\end{equation}
 %
-\subsubsection{Subsubsection 1}%
-\blindtext%
+where $\delta$ is a threshold on the action disagreement.
+
+\blindtext % PLACEHOLDER: Safety classifier architecture — input features (student observation, student action, or both?), network size, training procedure, threshold delta value, how the classifier is updated across DAgger iterations.
+
+\subsubsection{Teacher Intervention Mechanism}%
+\label{sec:intervention}%
+
+During data collection rollouts, the system uses the safety classifier to switch between student and teacher control:
 %
-\subsubsection{Subsubsection 2}%
-\blindtext%
+\begin{equation}\label{eq:intervention}
+    a_t = \begin{cases}
+        \hat{\pi}(o_t) & \text{if } D_\psi(o_t) = 1 \text{ (safe)} \\
+        \pi^*(s_t) & \text{if } D_\psi(o_t) = 0 \text{ (dangerous)}
+    \end{cases}
+\end{equation}
 %
-\subsection{Subsection 2}%
-\blindtext%
-%
-\subsection{Subsection 3}%
-\blindtext%
+This mechanism creates an implicit curriculum: early in training, when the student is poor, the teacher intervenes frequently; as the student improves, it progressively takes over more of the rollout.
+
+\blindtext % PLACEHOLDER: Describe the specific intervention strategy used. Was the Q-value-based risk predictor from DexSafeDagger (ChiZhang2026) also used, or only the action-disagreement classifier? How does the intervention ratio change over training? Any modifications compared to the original SafeDAgger paper?
+
+\subsubsection{DexSafeDagger Extensions}%
+\label{sec:dexsafedagger}%
+
+Building on the SafeDAgger framework, Zhang~\cite{ChiZhang2026} proposed DexSafeDagger, which augments the action-disagreement classifier with a Q-value-based risk predictor from the teacher's RL training.
+
+\blindtext % PLACEHOLDER: Describe which elements of DexSafeDagger were adopted in this work. Was the Q-value risk predictor used? How is the Q-value obtained (from the teacher's critic network)? How are the two signals (action disagreement + Q-value risk) combined? Any modifications or simplifications made?
+
+\subsection{Distillation Training Details}%
+\label{sec:distillation_details}%
+
+\blindtext % PLACEHOLDER: Common training details for both DAgger and SafeDAgger — optimizer (Adam?), learning rate schedule, batch size, number of distillation iterations, rollout episodes per iteration, total training time, GPU used. Dataset management (fixed buffer size? FIFO? weighted sampling?).
+
+%% =========================================================================
+\section{Evaluation Protocol}%
+\label{sec:eval_protocol}%
+
+This section describes the metrics and procedures used to compare DAgger and SafeDAgger distillation.
+
+\subsection{Performance Metrics}%
+\label{sec:metrics}%
+
+The following metrics are used to evaluate the distilled student policies:
+
+\begin{description}
+    \item[Grasp Success Rate (GSR):] Fraction of episodes where the student successfully grasps and lifts the object above a height threshold within the time limit.
+    \item[Unsafe Episode Rate (UER):] Fraction of training episodes containing at least one unsafe event (e.g., object dropped from height, excessive joint torques, collision).
+    \item[Teacher Query Rate (TQR):] Fraction of time steps where the teacher was queried during distillation (relevant for SafeDAgger).
+    \item[Convergence Speed:] Number of distillation iterations required to reach a target success rate.
+\end{description}
+
+\blindtext % PLACEHOLDER: Any additional metrics? How is "unsafe" defined precisely? What is the height threshold for successful grasp? Time limit per episode? Number of evaluation episodes per checkpoint?
+
+\subsection{Evaluation Objects}%
+\label{sec:eval_objects}%
+
+\blindtext % PLACEHOLDER: Which objects are used for evaluation? Same as training or held-out? Object categories, sizes, how many per category. Any sim-to-real evaluation planned or is everything in simulation?
+
+\subsection{Comparison Setup}%
+\label{sec:comparison_setup}%
+
+\blindtext % PLACEHOLDER: How are DAgger and SafeDAgger compared fairly? Same random seeds? Same number of total environment interactions? Same teacher policy? Number of independent runs for statistical significance? Ablations planned (e.g., varying safety threshold delta, with/without Q-value predictor)?
 %

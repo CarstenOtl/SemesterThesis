@@ -1,0 +1,204 @@
+% !TeX spellcheck = en_US
+\chapter{Experiments and Results}%
+\label{ch:experiments}%
+
+This chapter presents the experimental evaluation of the proposed system.
+It begins with the teacher policy training results, followed by the distillation experiments comparing DAgger and SafeDAgger, and concludes with ablation studies.
+
+%% =========================================================================
+\section{Teacher Policy Training}%
+\label{sec:teacher_results}%
+
+\subsection{Training Setup}%
+\label{sec:teacher_training_setup}%
+
+\blindtext % PLACEHOLDER: Summarize the training configuration — GPU model, number of parallel environments, total training steps, wall-clock time. Reference the hyperparameters from Chapter 3.
+
+\subsection{Learning Curves}%
+\label{sec:learning_curves}%
+
+% TODO: Add teacher training curve figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{teacher_training_curve}
+%     \caption{Teacher policy training: mean episode reward (left) and grasp success rate (right) over training steps.}
+%     \label{fig:teacher_training_curve}
+% \end{figure}
+
+\blindtext % PLACEHOLDER: Describe the training curves — convergence behavior, how many steps to reach plateau, any instabilities, comparison across random seeds. What final reward value was achieved? Was curriculum learning used and how did it affect convergence?
+
+\subsection{Teacher Policy Performance}%
+\label{sec:teacher_performance}%
+
+\begin{table}[htb]
+    \centering
+    \caption{Teacher policy performance evaluated over $N$ episodes.}
+    \label{tab:teacher_performance}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Metric} & \textbf{Value} \\
+        \midrule
+        Grasp Success Rate (\%) & -- \\
+        Mean Episode Reward & -- \\
+        Mean Time to Grasp (s) & -- \\
+        Mean Lift Height (m) & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\blindtext % PLACEHOLDER: Report final teacher performance — grasp success rate across all objects, per-object success rates if available, average reward, average time to grasp, average lift height. How does this compare to the DextrAH-RGB teacher (with FGPs)?
+
+\subsection{Qualitative Analysis}%
+\label{sec:teacher_qualitative}%
+
+\blindtext % PLACEHOLDER: Describe observed grasping behaviors — which grasp types emerge (power grasp, precision grasp, fingertip grasp)? Does the policy specialize for different objects? Any failure modes (missed grasps, unstable grasps, collisions)? Include representative snapshots if available.
+
+% TODO: Add qualitative figure showing grasp sequences
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=\textwidth]{grasp_sequences}
+%     \caption{Representative grasp sequences from the teacher policy on three different objects.}
+%     \label{fig:grasp_sequences}
+% \end{figure}
+
+%% =========================================================================
+\section{Distillation Results}%
+\label{sec:distillation_results}%
+
+This section compares the two distillation methods: DAgger (baseline) and SafeDAgger (proposed).
+Both methods use the same trained teacher policy and identical student network architectures.
+
+\subsection{DAgger Baseline}%
+\label{sec:dagger_results}%
+
+\blindtext % PLACEHOLDER: DAgger distillation results — number of iterations run, final student grasp success rate, convergence curve (success rate vs. iteration), how close the student gets to the teacher's performance. Any distribution shift issues observed?
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figures/ImagePNG.png}
+    \caption{DAgger distillation: student grasp success rate over distillation iterations. (Placeholder image)}
+    \label{fig:dagger_curve}
+\end{figure}
+
+\subsection{SafeDAgger Results}%
+\label{sec:safedagger_results}%
+
+\blindtext % PLACEHOLDER: SafeDAgger distillation results — same metrics as DAgger. How does the safety classifier evolve over iterations? What is the teacher intervention rate at different stages of training? Final student grasp success rate.
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figures/ImagePNG.png}
+    \caption{SafeDAgger distillation: student grasp success rate and teacher intervention rate over distillation iterations. (Placeholder image)}
+    \label{fig:safedagger_curve}
+\end{figure}
+
+\subsection{DAgger vs.\ SafeDAgger Comparison}%
+\label{sec:comparison}%
+
+\begin{table}[htb]
+    \centering
+    \caption{Comparison of DAgger and SafeDAgger distillation.}
+    \label{tab:dagger_comparison}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Metric} & \textbf{DAgger} & \textbf{SafeDAgger} \\
+        \midrule
+        Final Grasp Success Rate (\%) & -- & -- \\
+        Unsafe Episode Rate (\%) & -- & -- \\
+        Teacher Query Rate (\%) & -- & -- \\
+        Iterations to 70\% GSR & -- & -- \\
+        Total Training Time (h) & -- & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\blindtext % PLACEHOLDER: Direct comparison — which method achieves higher final success rate? By how much does SafeDAgger reduce unsafe episodes? Is there a trade-off between safety and performance? How do the convergence speeds compare? Statistical significance (mean ± std over multiple seeds)?
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figures/ImagePNG.png}
+    \caption{DAgger vs.\ SafeDAgger: grasp success rate (left) and unsafe episode rate (right) over distillation iterations. (Placeholder image)}
+    \label{fig:dagger_vs_safedagger}
+\end{figure}
+
+\subsection{Safety Analysis}%
+\label{sec:safety_analysis}%
+
+\blindtext % PLACEHOLDER: Detailed safety analysis — what types of unsafe events occur (object drops, joint limit violations, excessive forces, self-collisions)? How does the frequency of each type differ between DAgger and SafeDAgger? At which training stages are unsafe events most common? Does SafeDAgger's intervention mechanism effectively prevent the most critical failure modes?
+
+% TODO: Add safety event breakdown figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{safety_breakdown}
+%     \caption{Breakdown of unsafe events by type for DAgger and SafeDAgger.}
+%     \label{fig:safety_breakdown}
+% \end{figure}
+
+\subsection{Teacher Intervention Analysis}%
+\label{sec:intervention_analysis}%
+
+\blindtext % PLACEHOLDER: Analysis of the SafeDAgger intervention mechanism — how does the intervention rate decay over training? What states trigger intervention most frequently? Is the safety classifier well-calibrated (precision/recall)? Visualize states where intervention occurs vs. where the student acts independently.
+
+% TODO: Add intervention rate figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{intervention_rate}
+%     \caption{Teacher intervention rate over SafeDAgger distillation iterations.}
+%     \label{fig:intervention_rate}
+% \end{figure}
+
+%% =========================================================================
+\section{Ablation Studies}%
+\label{sec:ablations}%
+
+\subsection{Effect of Safety Threshold}%
+\label{sec:ablation_threshold}%
+
+\blindtext % PLACEHOLDER: Vary the safety classifier threshold delta — how does a stricter threshold (more interventions) vs. a lenient threshold (fewer interventions) affect final performance and safety? Plot GSR and UER vs. threshold value.
+
+% TODO: Add threshold ablation figure
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{ablation_threshold}
+%     \caption{Effect of safety threshold $\delta$ on grasp success rate and unsafe episode rate.}
+%     \label{fig:ablation_threshold}
+% \end{figure}
+
+\subsection{Effect of Reward Components}%
+\label{sec:ablation_rewards}%
+
+\blindtext % PLACEHOLDER: Ablate individual reward terms from the teacher training — which terms are essential? What happens without the action penalty? Without the lift reward? Present results as a table comparing teacher performance with different reward configurations.
+
+% TODO: Add reward ablation table
+% \begin{table}[htb]
+%     \centering
+%     \caption{Ablation of reward components on teacher policy grasp success rate.}
+%     \label{tab:ablation_rewards}
+%     \begin{tabular}{lc}
+%         \toprule
+%         \textbf{Configuration} & \textbf{GSR (\%)} \\
+%         \midrule
+%         Full reward & ... \\
+%         Without action penalty & ... \\
+%         Without lift reward & ... \\
+%         Without reach reward & ... \\
+%         \bottomrule
+%     \end{tabular}
+% \end{table}
+
+\subsection{Impact of Domain Randomization}%
+\label{sec:ablation_dr}%
+
+\blindtext % PLACEHOLDER: Compare teacher performance with and without domain randomization. Does DR hurt in-simulation performance? How much does it help generalization across different object properties? If sim-to-real was attempted, how does DR affect transfer?
+
+\subsection{Comparison Without Geometric Fabrics}%
+\label{sec:ablation_no_fpg}%
+
+\blindtext % PLACEHOLDER: Compare your approach (standard RL, no FGPs) to the original DextrAH-RGB approach (with FGPs). Can you reproduce or approximate their reported results? What performance gap exists? Is the gap in the teacher, the student, or both? Discuss what is lost by not using geometric fabrics (collision avoidance guarantees, motion smoothness).
+
+%% =========================================================================
+\section{Summary of Findings}%
+\label{sec:results_summary}%
+
+\blindtext % PLACEHOLDER: Concise summary of the key experimental findings — 3-5 bullet points or a short paragraph. What are the main takeaways? Does SafeDAgger deliver on its promise of safer training? Is there a performance cost? What surprised you?
+%
