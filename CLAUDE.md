@@ -28,6 +28,7 @@ The work follows and extends the **DextrAH-RGB** approach (Singh et al. 2025):
 2. **Student Policy Distillation:** The original DextrAH-RGB paper uses **DAgger** for distilling the privileged teacher into a vision-based student policy. This thesis replaces DAgger with **SafeDAgger** (Zhang & Cho 2016) / **DexSafeDagger** (Chi Zhang 2026, advisor's paper) and compares the two approaches.
 
 **Key differences from DextrAH-RGB:**
+
 - No Fabric-Guided Policies (FGPs) — the FGP setup had too many intricacies for the available time; standard RL policy is used instead
 - Manager-based Isaac Lab environment (vs. the authors' direct environment API)
 - Custom asset integration (Agile Hand + FR3)
@@ -67,22 +68,23 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 
 ### Thesis Structure (Target ~40 pages)
 
-The chapter files need to be rewritten from the current template content to thesis content:
-
-- `chapter01.tex` — **Introduction:** Motivation (dexterous hands underused outside labs, reliability bottleneck), problem statement, scope, contribution summary
-- `chapter02.tex` — **Related Work:** Dexterous grasping (UniDexGrasp++, DexGraspNet, DextrAH), policy distillation (DAgger, SafeDAgger, DexSafeDagger), sim-to-real transfer (DeXtreme, domain randomization), Isaac Lab
-- `chapter03.tex` — **Methods:** System setup (Isaac Lab manager-based env, asset integration, reward design), teacher training (PPO, privileged observations), student distillation (DAgger vs SafeDAgger), evaluation protocol
-- `chapter04.tex` — **Experiments & Results:** Training curves, grasp success rates, safety metrics (unsafe episodes), DAgger vs SafeDAgger comparison, ablations
-- `chapter05.tex` — **Discussion & Conclusion:** Findings, limitations (no FGPs, sim-only so far), future work (finger-gaiting, thread start, real-world transfer in master's thesis)
-- Additional chapters may be added (e.g., separate Background/Fundamentals chapter)
+- `chapter01.tex` — **Introduction** (WRITTEN): Motivation, problem statement, contributions, thesis outline. ~3 pages.
+- `chapter02.tex` — **Related Work** (WRITTEN): Classical control, grasp planning, RL fundamentals, sim-to-real, IL/distillation (DAgger/SafeDAgger/DexSafeDagger), dexterous manipulation, simulation frameworks. ~6 pages.
+- `chapter03.tex` — **Methods** (STRUCTURE WRITTEN, needs data): System overview, hardware platform, Isaac Lab environment, teacher policy (obs/action/reward/architecture/training/DR), student policy (DAgger vs SafeDAgger), evaluation protocol. Uses `\blindtext` placeholders for implementation specifics.
+- `chapter04.tex` — **Experiments & Results** (STRUCTURE WRITTEN, needs data): Teacher training results, distillation comparison, safety analysis, intervention analysis, ablations. Has live demo tables and placeholder figures. Uses `\blindtext` placeholders.
+- `chapter05.tex` — **Discussion & Conclusion** (PLACEHOLDER ONLY): Needs to be written.
+- `abstract.tex` — Still contains placeholder blind text.
 
 ### Current State
 
-- The report files still contain **template/example content** — none of the actual thesis content has been written yet.
-- The title page in `main.tex` is configured for a Semester Thesis with the correct author/advisor/date.
+- Chapters 1-2 are **fully written** with proper citations.
+- Chapters 3-4 have **complete structure** with `\blindtext` placeholders where implementation details are needed.
+- Chapter 5 is a **bare placeholder**.
 - The `abstract.tex` still contains placeholder blind text.
-- The `literature1.bib` file already contains most key references. Missing: UniDexGrasp++, DexGraspNet synthesis paper, some expose references.
-- The Bicchi & Kumar entry in `literature1.bib` has a **missing cite key** (needs fixing).
+- Bibliography (`literature.bib`) contains ~30 entries, all `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
+- `literature1.bib` is **no longer used** (commented out in main.tex); all references are in `literature.bib`.
+- Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package).
+- `.gitignore` is configured to exclude LaTeX build artifacts but keep PDFs.
 
 ## Build Commands
 
@@ -98,36 +100,59 @@ pdflatex main.tex
 
 The triple `pdflatex` pass is needed to resolve cross-references and bibliography citations. `biber` (not `bibtex`) is the bibliography backend (`optBiber` class option).
 
+**Important:** If biber fails or references show `[0]`, delete all cached files and rebuild:
+
+```bash
+cd Report
+rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.toc main.lof main.lot main.synctex.gz source/*.aux
+```
+
+### Known Build Fixes Applied in `main.tex` Preamble
+
+- `\ExecuteBibliographyOptions{defernumbers=false}` — Fixes `[0]` citation numbers (class sets `defernumbers=true` for biber, which conflicts with `sorting=none`)
+- `\ExecuteBibliographyOptions{sorting=none}` — Forces citation-order sorting (class has conflicting `sorting=nyt` and `sorting=none` settings)
+- `\usepackage[printonlyused]{acronym}` — Abbreviation list support
+
+### Known Biber Issues
+
+- **Do NOT put HTML tags** (`<br/>`, `<b>`, etc.), Unicode math symbols, or unescaped special characters in `note` or `abstract` fields in `.bib` files. Biber passes them to the `.bbl` file and pdflatex crashes with `! Illegal parameter number in definition of \NewCount`.
+- **TeXstudio config:** The bibliography tool must be set to `txs:///biber` in `Options -> Configure TeXstudio -> Build -> Default Bibliography Tool`. If set to bibtex, references won't resolve.
+
 ## Repository Structure
 
 - `Report/main.tex` — Root document; sets class options, loads packages, includes chapters
 - `Report/AIRlatex.cls` — TUM AIRlatex document class (do not edit)
 - `Report/cover.tex` — Separate document for printing a physical cover
-- `Report/source/` — Chapter files (`chapter01.tex`, `chapter02.tex`, `chapter03.tex`), `abstract.tex`, `appendix.tex`
-- `Report/source/literature.bib`, `Report/source/literature1.bib` — Bibliography databases
+- `Report/source/` — Chapter files (`chapter01.tex` through `chapter05.tex`), `abstract.tex`, `appendix.tex`
+- `Report/source/literature.bib` — Bibliography database (single active bib file, ~30 entries)
 - `Report/figures/` — Images and TikZ figures (supports PDF, PNG, TikZ formats)
 - `additonal_info/` — Reference materials:
   - `Masters Thesis Expose - Carsten Oertel.pdf` — Full expose with objectives, WPs, milestones, research questions
   - `SemesterThesis-Introduction-Presentation.pdf` — Introduction presentation with SotA review, pipeline diagram, evaluation plan
+- `.gitignore` — Excludes LaTeX build artifacts, keeps PDFs
 
 ## Key Conventions
 
-- **Class options** are set in `main.tex` line 2-12: font (Charter), black headings/refs, Biber, alphabetic bib style, centered equations, English language.
+- **Class options** are set in `main.tex`: font (Charter), black headings/refs, Biber backend, numeric bib style (`optBibstyleNumeric`), centered equations, English language.
 - **Graphics path** is `figures/` — use `\includegraphics{filename}` without the directory prefix.
-- **Two bib files** are loaded: `source/literature.bib` and `source/literature1.bib`.
+- **Single bib file:** `source/literature.bib` (literature1.bib is no longer used).
 - Custom commands: `\code{...}` for inline code, `\degree` for degree symbol.
 - The `.cls` file is auto-generated from the AIRlatex project — modifications should go in `main.tex` preamble, not the class file.
 - Use `\cref{}` for cross-references (provided by cleveref via AIRlatex).
-- Follow I6 citation style: alphabetic (e.g., `[BM92]`), use `\cite[page X]{key}` for direct quotes.
+- Citation style: numeric (`[1]`, `[2]`, ...), sorted by order of first appearance.
 - Use vector graphics (PDF/TikZ) over raster (PNG) whenever possible.
 - Math notation: scalars italic lowercase, vectors bold lowercase, matrices bold uppercase.
+- Abbreviations: use `\ac{RL}` for first use (expands to full form), `\acs{RL}` for short form only. Defined in `main.tex` abbreviation list.
 
 ## Writing Guidelines
 
 When writing thesis content:
+
 - Write in **academic English**, third person, present tense for general statements, past tense for completed experiments.
 - Each chapter should open with a brief paragraph stating what the chapter covers.
 - Every figure and table must be referenced in the text.
 - Keep paragraphs focused — one idea per paragraph.
 - Cite sources for all claims that are not the author's own contribution.
 - Use `\label{}` and `\cref{}` consistently for all numbered elements.
+- Use `\blindtext` as placeholder for sections that need the author's input — add a `% PLACEHOLDER:` comment explaining what content is needed.
+- When adding new bibliography entries, do NOT include `abstract` or `note` fields (they crash biber/pdflatex).
