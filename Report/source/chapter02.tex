@@ -36,12 +36,12 @@ The end-effector behaves as a mass-spring-damper system:
 %
 where $M_d$, $D_d$, and $K_d$ are the desired inertia, damping, and stiffness, and $\boldsymbol{x}$, $\boldsymbol{x}_d$ are the actual and desired end-effector poses.
 Impedance control is particularly relevant for dexterous manipulation, where fingers must maintain stable contact with objects while accommodating positional uncertainty.
-The Franka Research~3 arm used in this work provides link-side joint torque sensing, enabling Cartesian impedance control without external force-torque sensors.
+The \ac{FR3} arm used in this work provides link-side joint torque sensing, enabling Cartesian impedance control without external force-torque sensors.
 
 \paragraph{Model predictive control.}
-Model Predictive Control (MPC) extends classical control by solving an optimization problem over a receding horizon at each time step~\cite{Camacho2007}.
+\ac{MPC} extends classical control by solving an optimization problem over a receding horizon at each time step~\cite{Camacho2007}.
 Given a dynamics model $\boldsymbol{x}_{t+1} = f(\boldsymbol{x}_t, \boldsymbol{u}_t)$, MPC computes the action sequence $\boldsymbol{u}_{t:t+H}$ that minimizes a cost function $J = \sum_{k=0}^{H} \ell(\boldsymbol{x}_{t+k}, \boldsymbol{u}_{t+k})$ subject to constraints, and executes only the first action before re-planning.
-Nagabandi et al.~\cite{Nagabandi2019} demonstrated that combining learned neural network dynamics models with MPC can enable dexterous manipulation on a 24-DoF anthropomorphic hand with only four hours of real-world data.
+Nagabandi et al.~\cite{Nagabandi2019} demonstrated that combining learned neural network dynamics models with MPC can enable dexterous manipulation on a 24-\acs{DoF} anthropomorphic hand with only four hours of real-world data.
 While MPC can handle complex dynamics, its reliance on an accurate model and the computational cost of online optimization make it challenging for high-frequency control of multi-fingered hands.
 
 %% =========================================================================
@@ -54,7 +54,7 @@ The classical theory of robotic grasping analyzes grasps through the lens of con
 \paragraph{Force closure.}
 A grasp is said to achieve \emph{force closure} if the fingers can exert arbitrary wrenches (forces and torques) on the object through the contact points, thereby resisting any external disturbance~\cite{Ferrari1992}.
 Formally, a set of contact points $\{c_1, \ldots, c_k\}$ with associated contact normals achieves force closure if the convex hull of the primitive wrenches spans $\mathbb{R}^6$.
-Ferrari and Canny~\cite{Ferrari1992} proposed quality metrics based on the largest ball inscribed in the Grasp Wrench Space (GWS), which remains a standard measure of grasp quality.
+Ferrari and Canny~\cite{Ferrari1992} proposed quality metrics based on the largest ball inscribed in the \ac{GWS}, which remains a standard measure of grasp quality.
 
 \paragraph{Analytical vs.\ data-driven approaches.}
 Traditional grasp planning computes contact locations analytically by optimizing force-closure metrics over the object's geometry.
@@ -73,28 +73,28 @@ UniDexGrasp++~\cite{Wan2023} addressed this by decomposing the problem into a ge
 \section{Reinforcement Learning}%
 \label{sec:rl}%
 
-Reinforcement learning (RL) provides a framework for learning sequential decision-making through trial and error~\cite{SuttonBarto2018}.
-An RL problem is formalized as a Markov Decision Process (MDP) defined by the tuple $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ the action space, $P(s'|s,a)$ the transition dynamics, $R(s,a)$ the reward function, and $\gamma \in [0,1)$ the discount factor.
+\ac{RL} provides a framework for learning sequential decision-making through trial and error~\cite{SuttonBarto2018}.
+An RL problem is formalized as a \ac{MDP} defined by the tuple $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ the action space, $P(s'|s,a)$ the transition dynamics, $R(s,a)$ the reward function, and $\gamma \in [0,1)$ the discount factor.
 The agent seeks a policy $\pi(a|s)$ that maximizes the expected cumulative discounted reward $J(\pi) = \mathbb{E}_\pi\left[\sum_{t=0}^{\infty} \gamma^t R(s_t, a_t)\right]$.
 
 \paragraph{Policy gradient methods.}
 For continuous action spaces typical of robotics, policy gradient methods parameterize the policy $\pi_\theta$ and optimize $J$ by gradient ascent:
 $\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\pi_\theta}\left[\sum_t \nabla_\theta \log \pi_\theta(a_t|s_t) \hat{A}_t\right]$,
 where $\hat{A}_t$ is an estimate of the advantage function.
-Trust Region Policy Optimization (TRPO)~\cite{Schulman2015} constrains the policy update to a trust region to ensure monotonic improvement.
-Proximal Policy Optimization (PPO)~\cite{Schulman2017} simplifies this by using a clipped surrogate objective:
+\ac{TRPO}~\cite{Schulman2015} constrains the policy update to a trust region to ensure monotonic improvement.
+\ac{PPO}~\cite{Schulman2017} simplifies this by using a clipped surrogate objective:
 %
 \begin{equation}\label{eq:ppo}
     L^{\text{CLIP}}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t,\;\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]
 \end{equation}
 %
 where $r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_\text{old}}(a_t|s_t)$ is the probability ratio and $\epsilon$ is the clipping parameter.
-PPO has become the dominant algorithm for robotic RL due to its stability and ease of implementation.
+PPO has become the dominant algorithm for robotic \ac{RL} due to its stability and ease of implementation.
 It is used throughout the dexterous manipulation literature~\cite{Handa2024, Andrychowicz2020, Petrenko2023} and in this work for training the privileged teacher policy.
 
 \paragraph{Deep RL for robotics.}
-The combination of deep neural networks with RL---deep RL (DRL)---has enabled learning of complex behaviors from high-dimensional sensory inputs~\cite{Mnih2015}.
-In robotics, DRL has been applied to locomotion, navigation, and manipulation tasks~\cite{Tang2024}.
+The combination of deep neural networks with RL---\ac{DRL}---has enabled learning of complex behaviors from high-dimensional sensory inputs~\cite{Mnih2015}.
+In robotics, \ac{DRL} has been applied to locomotion, navigation, and manipulation tasks~\cite{Tang2024}.
 However, robotics poses specific challenges: real-world interaction is slow, expensive, and potentially destructive; reward functions are difficult to specify; and the dynamics are often partially observable.
 These challenges have driven the adoption of simulation-based training with subsequent transfer to real hardware.
 
@@ -105,13 +105,13 @@ These challenges have driven the adoption of simulation-based training with subs
 Training RL policies entirely in simulation circumvents the cost and safety issues of real-world learning, but introduces the \emph{sim-to-real gap}---discrepancies between simulated and real physics, perception, and actuation.
 
 \paragraph{Domain randomization.}
-The most widely adopted strategy for bridging the sim-to-real gap is \emph{domain randomization} (DR), which varies simulation parameters (friction, mass, lighting, sensor noise, actuator delays) across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
+The most widely adopted strategy for bridging the sim-to-real gap is \ac{DR}, which varies simulation parameters (friction, mass, lighting, sensor noise, actuator delays) across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
 The hypothesis is that if the real world falls within the distribution of randomized simulations, the policy will generalize without fine-tuning.
 Peng et al.~\cite{Peng2018} demonstrated that randomizing dynamics parameters enables zero-shot sim-to-real transfer for locomotion and manipulation tasks.
 
 \paragraph{Automatic domain randomization.}
 Manual selection of randomization ranges is tedious and error-prone.
-Automatic Domain Randomization (ADR) automates this process by gradually widening parameter ranges based on policy performance~\cite{OpenAI2020}.
+\ac{ADR} automates this process by gradually widening parameter ranges based on policy performance~\cite{OpenAI2020}.
 The method maintains lower and upper bounds for each randomization dimension and adjusts them using performance thresholds, creating a natural curriculum from easy to difficult conditions.
 Handa et al.~\cite{Handa2024} extended ADR to vectorized GPU-based environments (VADR), enabling efficient scaling to thousands of parallel simulation instances.
 
@@ -124,11 +124,11 @@ Hybrid approaches that combine system identification with moderate domain random
 \section{Imitation Learning and Policy Distillation}%
 \label{sec:il}%
 
-While RL can discover optimal behaviors from scratch, it requires extensive exploration and careful reward engineering.
-Imitation learning (IL) offers an alternative by learning from expert demonstrations.
+While \ac{RL} can discover optimal behaviors from scratch, it requires extensive exploration and careful reward engineering.
+\ac{IL} offers an alternative by learning from expert demonstrations.
 
 \paragraph{Behavioral cloning.}
-The simplest form of IL is \emph{behavioral cloning} (BC), which treats policy learning as supervised regression: given a dataset of state-action pairs $\{(s_i, a_i^*)\}$ collected under an expert policy $\pi^*$, the learner minimizes $\mathbb{E}[\|\pi_\theta(s) - a^*\|^2]$.
+The simplest form of IL is \ac{BC}, which treats policy learning as supervised regression: given a dataset of state-action pairs $\{(s_i, a_i^*)\}$ collected under an expert policy $\pi^*$, the learner minimizes $\mathbb{E}[\|\pi_\theta(s) - a^*\|^2]$.
 Pomerleau~\cite{Pomerleau1988} pioneered this approach with ALVINN, an autonomous driving system trained from human demonstrations.
 BC is straightforward but suffers from \emph{compounding errors}: small deviations from the expert's state distribution lead to states not covered by the training data, causing the policy to drift further and fail~\cite{Ross2011}.
 
@@ -169,7 +169,7 @@ Huang et al.~\cite{Huang2025} further showed that the student can surpass the te
 Dexterous manipulation with multi-fingered hands has advanced rapidly in recent years, driven by improvements in simulation, GPU-accelerated training, and sim-to-real transfer.
 
 \paragraph{Early milestones.}
-Kumar et al.~\cite{Kumar2016} demonstrated model-based RL for dexterous manipulation using locally linear models, achieving contact-rich tasks on a 24-DoF hand.
+Kumar et al.~\cite{Kumar2016} demonstrated model-based RL for dexterous manipulation using locally linear models, achieving contact-rich tasks on a 24-\acs{DoF} hand.
 The landmark work by Andrychowicz et al.~\cite{Andrychowicz2020} at OpenAI showed that a Shadow Dexterous Hand could learn to solve a Rubik's Cube through massive-scale RL in simulation with domain randomization, establishing that sim-to-real transfer is viable even for extremely complex manipulation.
 
 \paragraph{GPU-accelerated training.}
@@ -182,7 +182,7 @@ While much early work focused on in-hand manipulation with a fixed wrist, practi
 DextrAH-G~\cite{Lum2024} addressed this with a 23-motor arm-hand system, combining geometric fabrics~\cite{Ratliff2023} with RL to achieve fast, safe dexterous grasping from depth images.
 Geometric fabrics provide a structured control layer that guarantees collision avoidance and smooth motions, while the RL policy operates on top of this layer to learn task-specific behavior.
 DextrAH-RGB~\cite{Singh2025} extended this to RGB-only input, demonstrating the first successful sim-to-real transfer of an end-to-end RGB-based dexterous grasping policy.
-The key innovations include training the privileged teacher as a Fabric-Guided Policy (FGP) and using photorealistic tiled rendering for distillation.
+The key innovations include training the privileged teacher as a \ac{FGP} and using photorealistic tiled rendering for distillation.
 
 \paragraph{Positioning of this work.}
 This thesis builds on the DextrAH-RGB framework but makes two significant departures.

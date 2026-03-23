@@ -9,11 +9,11 @@ This chapter motivates the problem of dexterous robotic grasping, states the spe
 
 Multi-fingered dexterous hands offer robots the potential to interact with the world in a manner approaching human versatility.
 Unlike parallel-jaw grippers, which are limited to a narrow set of grasp geometries, anthropomorphic hands can conform to arbitrary object shapes, reorient objects in-hand, and wield tools~\cite{Tang2024}.
-Despite this potential, high degree-of-freedom (DoF) hands remain largely confined to research laboratories.
+Despite this potential, high \ac{DoF} hands remain largely confined to research laboratories.
 The core bottleneck is not hardware---several capable platforms exist, including the Allegro Hand, the Shadow Dexterous Hand, and the Agile Hand used in this work---but rather the difficulty of synthesizing reliable control policies for contact-rich tasks.
 
 Traditional analytic approaches to grasp planning rely on known object models and precise contact modeling, assumptions that rarely hold in unstructured environments~\cite{Wu2022}.
-Learning-based methods, particularly deep reinforcement learning (RL), have recently demonstrated impressive dexterous manipulation capabilities in simulation~\cite{Handa2024, Lin2025}.
+Learning-based methods, particularly \ac{DRL}, have recently demonstrated impressive dexterous manipulation capabilities in simulation~\cite{Handa2024, Lin2025}.
 However, transferring these policies to real hardware introduces a fundamental challenge: during training, RL agents have access to privileged information (exact object poses, contact forces, full state vectors) that is unavailable at deployment time, where the robot must rely on noisy sensory observations such as camera images.
 
 The dominant strategy to bridge this gap is \emph{policy distillation}---training a privileged \emph{teacher} policy in simulation with full state access, then distilling its behavior into a \emph{student} policy that operates from realistic sensor inputs~\cite{Singh2025, Lum2024}.
@@ -28,14 +28,14 @@ This thesis addresses the problem of learning a vision-based dexterous grasping 
 
 Concretely, the work builds on the DextrAH-RGB framework~\cite{Singh2025}, which proposes a two-stage pipeline:
 \begin{enumerate}
-    \item A \textbf{privileged teacher policy} is trained via RL (PPO) in a GPU-accelerated physics simulator with access to ground-truth object poses, joint states, and contact information.
+    \item A \textbf{privileged teacher policy} is trained via \ac{RL} (\ac{PPO}) in a GPU-accelerated physics simulator with access to ground-truth object poses, joint states, and contact information.
     \item A \textbf{vision-based student policy} is distilled from the teacher using DAgger, learning to map RGB observations to grasp actions.
 \end{enumerate}
 
-The original DextrAH-RGB work employs Fabric-Guided Policies (FGPs) built on geometric fabrics~\cite{Ratliff2023} and uses DAgger for distillation.
+The original DextrAH-RGB work employs \acp{FGP} built on geometric fabrics~\cite{Ratliff2023} and uses DAgger for distillation.
 This thesis departs from the original approach in two key ways:
 \begin{itemize}
-    \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in the Isaac Lab manager-based environment with the Agile Hand mounted on a Franka Research~3 arm.
+    \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in the Isaac Lab manager-based environment with the Agile Hand mounted on a \ac{FR3} arm.
     \item The distillation step replaces DAgger with \textbf{SafeDAgger}~\cite{Zhang2016}, a query-efficient variant that learns a safety classifier to determine when the teacher should intervene, thereby reducing unsafe episodes during training. This is further informed by the DexSafeDagger framework~\cite{ChiZhang2026}, which extends SafeDAgger with Q-value-based failure prediction for dexterous manipulation.
 \end{itemize}
 
@@ -45,9 +45,9 @@ This thesis departs from the original approach in two key ways:
 The main contributions of this semester thesis are:
 
 \begin{enumerate}
-    \item \textbf{Dexterous grasping environment in Isaac Lab:} A manager-based Isaac Lab environment for training arm-hand grasping policies with the Agile Hand and Franka Research~3, including custom reward shaping and asset integration.
+    \item \textbf{Dexterous grasping environment in Isaac Lab:} A manager-based Isaac Lab environment for training arm-hand grasping policies with the Agile Hand and \ac{FR3}, including custom reward shaping and asset integration.
     \item \textbf{Privileged teacher policy:} A trained RL teacher policy that achieves robust dexterous grasping of diverse objects in simulation using privileged state information.
-    \item \textbf{SafeDAgger-based distillation:} A comparative study of DAgger versus SafeDAgger for distilling the privileged teacher into a vision-based student, evaluating both task performance (grasp success rate) and training safety (number of unsafe episodes).
+    \item \textbf{SafeDAgger-based distillation:} A comparative study of DAgger versus SafeDAgger for distilling the privileged teacher into a vision-based student, evaluating both task performance (\ac{GSR}) and training safety (number of unsafe episodes).
 \end{enumerate}
 
 This work lays the foundation for the subsequent master's thesis, which will extend the pipeline to include finger-gaiting, in-hand reorientation, and fine tool use such as screwdriving.

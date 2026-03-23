@@ -10,7 +10,7 @@ It describes the hardware platform, the simulation environment built in Isaac La
 \label{sec:system_overview}%
 
 The system follows a two-stage privileged teacher-student paradigm, illustrated in~\cref{fig:system_overview}.
-In the first stage, a \emph{privileged teacher policy} is trained in simulation via Proximal Policy Optimization (PPO).
+In the first stage, a \emph{privileged teacher policy} is trained in simulation via \ac{PPO}.
 The teacher receives full state information---ground-truth object poses, joint positions, velocities, and contact forces---that would be unavailable on real hardware.
 In the second stage, the teacher's behavior is \emph{distilled} into a vision-based student policy that operates from RGB images.
 This distillation is performed using either DAgger or SafeDAgger, and the resulting student policies are compared in terms of task performance and training safety.
@@ -29,7 +29,7 @@ This distillation is performed using either DAgger or SafeDAgger, and the result
 \section{Hardware Platform}%
 \label{sec:hardware}%
 
-The robotic platform consists of a Franka Research~3 (FR3) arm equipped with an Agile Hand, forming a coordinated arm-hand system.
+The robotic platform consists of a \ac{FR3} arm equipped with an Agile Hand, forming a coordinated arm-hand system.
 
 \subsection{Franka Research~3 Arm}%
 \label{sec:fr3}%
@@ -165,7 +165,7 @@ The reward terms used in this work are:
 \subsection{Training Procedure}%
 \label{sec:training_procedure}%
 
-The teacher is trained using Proximal Policy Optimization (PPO)~\cite{Schulman2017} with the clipped surrogate objective.
+The teacher is trained using \ac{PPO}~\cite{Schulman2017} with the clipped surrogate objective.
 
 \blindtext % PLACEHOLDER: PPO hyperparameters — learning rate, number of epochs per update, minibatch size, clip parameter epsilon, discount factor gamma, GAE lambda, entropy coefficient, value function coefficient. Number of parallel environments. Total training steps/time. Training hardware (GPU model). Training curves description (convergence behavior). Any curriculum used?
 
@@ -279,9 +279,9 @@ This section describes the metrics and procedures used to compare DAgger and Saf
 The following metrics are used to evaluate the distilled student policies:
 
 \begin{description}
-    \item[Grasp Success Rate (GSR):] Fraction of episodes where the student successfully grasps and lifts the object above a height threshold within the time limit.
-    \item[Unsafe Episode Rate (UER):] Fraction of training episodes containing at least one unsafe event (e.g., object dropped from height, excessive joint torques, collision).
-    \item[Teacher Query Rate (TQR):] Fraction of time steps where the teacher was queried during distillation (relevant for SafeDAgger).
+    \item[\ac{GSR}:] Fraction of episodes where the student successfully grasps and lifts the object above a height threshold within the time limit.
+    \item[\ac{UER}:] Fraction of training episodes containing at least one unsafe event (e.g., object dropped from height, excessive joint torques, collision).
+    \item[\ac{TQR}:] Fraction of time steps where the teacher was queried during distillation (relevant for SafeDAgger).
     \item[Convergence Speed:] Number of distillation iterations required to reach a target success rate.
 \end{description}
 
