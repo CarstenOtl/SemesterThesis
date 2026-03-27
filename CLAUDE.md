@@ -70,21 +70,23 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 
 - `chapter01.tex` — **Introduction** (WRITTEN): Motivation, problem statement, contributions, thesis outline. ~3 pages.
 - `chapter02.tex` — **Related Work** (WRITTEN): Classical control, grasp planning, RL fundamentals, sim-to-real, IL/distillation (DAgger/SafeDAgger/DexSafeDagger), dexterous manipulation, simulation frameworks. ~6 pages.
-- `chapter03.tex` — **Methods** (STRUCTURE WRITTEN, needs data): System overview, hardware platform, Isaac Lab environment, teacher policy (obs/action/reward/architecture/training/DR), student policy (DAgger vs SafeDAgger), evaluation protocol. Uses `\blindtext` placeholders for implementation specifics.
-- `chapter04.tex` — **Experiments & Results** (STRUCTURE WRITTEN, needs data): Teacher training results, distillation comparison, safety analysis, intervention analysis, ablations. Has live demo tables and placeholder figures. Uses `\blindtext` placeholders.
+- `chapter03.tex` — **Methods** (WRITTEN, mathematical): Purely abstract/mathematical chapter. POMDP formulation, privileged vs partial observability, asymmetric actor-critic, PPO objective, reward structure formalization, ADR formulation, DAgger algorithm, SafeDAgger with safety policy and intervention mechanism, DexSafeDagger Q-value risk, multi-teacher distillation. Contains Algorithm blocks for DAgger and SafeDAgger. No implementation details — those are in Chapter 4.
+- `chapter04.tex` — **Experiments & Results** (MOSTLY WRITTEN, some placeholders): Contains ALL implementation details: hardware platform (FR3 + Agile Hand specs), simulation environment (Isaac Lab, PhysX config tables), object set (13 VisDex objects), episode structure, teacher obs/action space tables, reward terms table with weights, network architecture (LSTM 1024), PPO hyperparameters table, ADR parameter ranges table, student architecture (ResNet-18 + cross-attention + LSTM 512), SafeDAgger distillation config, evaluation protocol (GSR/UER/TQR metrics), teacher training results (ADR-5 and ADR-19), physics stability challenges table, SafeDAgger distillation results (run1a/1b with concrete numbers), ablation studies (envs, penalty, teacher strength). Remaining placeholders: DAgger baseline comparison (experiments pending), per-object breakdown, some figures, GPU specs, wall-clock times.
 - `chapter05.tex` — **Discussion & Conclusion** (PLACEHOLDER ONLY): Needs to be written.
 - `abstract.tex` — Still contains placeholder blind text.
 
 ### Current State
 
 - Chapters 1-2 are **fully written** with proper citations.
-- Chapters 3-4 have **complete structure** with `\blindtext` placeholders where implementation details are needed.
+- Chapter 3 is **fully written** as a mathematical/abstract methods chapter (POMDP, PPO, DAgger, SafeDAgger, DexSafeDagger). Uses `algorithm`/`algpseudocode` for algorithm blocks.
+- Chapter 4 is **mostly written** with concrete data from experiment logs. Has tables with real numbers from exp_02/exp_04 logs. Remaining placeholders are clearly marked with `% PLACEHOLDER:` comments for: DAgger baseline (experiments not yet run), figures (need to be generated from training logs), GPU model/wall-clock times, exact critic obs dimension, per-object eval breakdown.
 - Chapter 5 is a **bare placeholder**.
 - The `abstract.tex` still contains placeholder blind text.
 - Bibliography (`literature.bib`) contains ~30 entries, all `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
 - `literature1.bib` is **no longer used** (commented out in main.tex); all references are in `literature.bib`.
-- Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package).
+- Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package with POMDP added).
 - `.gitignore` is configured to exclude LaTeX build artifacts but keep PDFs.
+- `main.tex` uses `algpseudocode` (not `algorithmicx`) for algorithm pseudocode in Chapter 3.
 
 ## Build Commands
 
@@ -142,7 +144,13 @@ rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.to
 - Citation style: numeric (`[1]`, `[2]`, ...), sorted by order of first appearance.
 - Use vector graphics (PDF/TikZ) over raster (PNG) whenever possible.
 - Math notation: scalars italic lowercase, vectors bold lowercase, matrices bold uppercase.
-- Abbreviations: use `\ac{RL}` for first use (expands to full form), `\acs{RL}` for short form only. Defined in `main.tex` abbreviation list.
+- Abbreviations: use `\ac{RL}` for first use (expands to full form), `\acs{RL}` for short form only. Defined in `main.tex` abbreviation list. POMDP acronym is defined.
+- Algorithm pseudocode: use `algorithm` + `algpseudocode` environments (not `algorithmicx`). See Chapter 3 for examples.
+
+### Chapter Organization Principle
+
+- **Chapter 3 (Methods):** Strictly mathematical and abstract. Problem formulation (POMDP), RL objectives (PPO), distillation algorithms (DAgger, SafeDAgger, DexSafeDagger). No implementation details, no specific numbers, no hardware descriptions.
+- **Chapter 4 (Experiments):** All implementation details. Hardware platform, simulation environment, reward terms/weights, observation/action spaces, network architectures, training hyperparameters, ADR ranges, evaluation protocol, results with concrete numbers, ablations.
 
 ## Writing Guidelines
 

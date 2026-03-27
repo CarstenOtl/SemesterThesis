@@ -18,7 +18,7 @@
 %
 % Load additional LaTeX packages - remove what you do not need
 \usepackage{algorithm}%
-\usepackage{algorithmicx}%
+\usepackage{algpseudocode}%
 \usepackage{booktabs}%
 \usepackage[printonlyused]{acronym}% Abbreviation list
 %
@@ -63,7 +63,7 @@
 % ---------------------
 \chapter*{List of Abbreviations}%
 \addcontentsline{toc}{chapter}{List of Abbreviations}%
-\begin{acronym}[MBRL]
+\begin{acronym}[POMDP]
     \acro{RL}{Reinforcement Learning}
     \acro{DRL}{Deep Reinforcement Learning}
     \acro{IL}{Imitation Learning}
@@ -71,6 +71,7 @@
     \acro{PPO}{Proximal Policy Optimization}
     \acro{TRPO}{Trust Region Policy Optimization}
     \acro{MDP}{Markov Decision Process}
+    \acro{POMDP}{Partially Observable Markov Decision Process}
     \acro{MPC}{Model Predictive Control}
     \acro{DR}{Domain Randomization}
     \acro{ADR}{Automatic Domain Randomization}

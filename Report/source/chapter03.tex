@@ -2,298 +2,274 @@
 \chapter{Methods}%
 \label{ch:methods}%
 
-This chapter presents the methodology used in this work.
-It describes the hardware platform, the simulation environment built in Isaac Lab, the privileged teacher policy trained via reinforcement learning, and the two distillation approaches---DAgger and SafeDAgger---used to transfer the teacher's behavior to a vision-based student policy.
+This chapter formalizes the problem of learning a vision-based dexterous grasping policy and presents the mathematical framework underlying the two-stage privileged teacher--student pipeline.
+\cref{sec:problem_formulation} states the problem as a partially observable decision process.
+\cref{sec:privileged_teacher} derives the privileged teacher training objective.
+\cref{sec:distillation_framework} introduces the distillation framework, covering DAgger, SafeDAgger, and DexSafeDagger.
 
 %% =========================================================================
-\section{System Overview}%
-\label{sec:system_overview}%
+\section{Problem Formulation}%
+\label{sec:problem_formulation}%
 
-The system follows a two-stage privileged teacher-student paradigm, illustrated in~\cref{fig:system_overview}.
-In the first stage, a \emph{privileged teacher policy} is trained in simulation via \ac{PPO}.
-The teacher receives full state information---ground-truth object poses, joint positions, velocities, and contact forces---that would be unavailable on real hardware.
-In the second stage, the teacher's behavior is \emph{distilled} into a vision-based student policy that operates from RGB images.
-This distillation is performed using either DAgger or SafeDAgger, and the resulting student policies are compared in terms of task performance and training safety.
+\subsection{Dexterous Grasping as a POMDP}%
+\label{sec:pomdp}%
 
-% TODO: Add system overview figure
-% \begin{figure}[htb]
-%     \centering
-%     \includegraphics[width=\textwidth]{system_overview}
-%     \caption{System overview: privileged teacher training (left) and vision-based student distillation (right).}
-%     \label{fig:system_overview}
-% \end{figure}
-
-\blindtext % PLACEHOLDER: Expand on the overall pipeline, key design decisions, and how phases connect.
-
-%% =========================================================================
-\section{Hardware Platform}%
-\label{sec:hardware}%
-
-The robotic platform consists of a \ac{FR3} arm equipped with an Agile Hand, forming a coordinated arm-hand system.
-
-\subsection{Franka Research~3 Arm}%
-\label{sec:fr3}%
-
-\blindtext % PLACEHOLDER: FR3 specs — 7 DoF, joint torque sensing, impedance control capabilities, workspace, payload. Describe why FR3 was chosen.
-
-\subsection{Agile Hand}%
-\label{sec:agile_hand}%
-
-\blindtext % PLACEHOLDER: Agile Hand specs — number of fingers, DoF per finger, thumb abduction DoF, total 16 DoF, tendon-driven vs. direct drive, max grip force, finger workspace. Describe the specific configuration used.
-
-\subsection{Sensor Setup}%
-\label{sec:sensors}%
-
-\blindtext % PLACEHOLDER: Intel RealSense D405 specs — resolution, depth range, mounting position (eye-in-hand or external), frame rate. Describe how it is used in sim vs. real.
-
-%% =========================================================================
-\section{Simulation Environment}%
-\label{sec:sim_environment}%
-
-All training and distillation is performed in NVIDIA Isaac Lab, a GPU-accelerated simulation framework built on Isaac Sim.
-This section describes the environment design, asset integration, and key configuration choices.
-
-\subsection{Isaac Lab Manager-Based Architecture}%
-\label{sec:manager_based}%
-
-Isaac Lab provides two paradigms for environment design: a \emph{direct} API and a \emph{manager-based} API~\cite{Mittal2023}.
-This work uses the manager-based API, which structures the environment into modular components:
-
-\begin{itemize}
-    \item \textbf{Observation Manager:} Defines the observation spaces for both actor (policy) and critic (value function). The teacher receives privileged observations, while the student receives image-based observations.
-    \item \textbf{Action Manager:} Maps policy outputs to joint position targets for the arm and hand.
-    \item \textbf{Reward Manager:} Computes a weighted sum of reward terms at each time step.
-    \item \textbf{Termination Manager:} Defines episode termination conditions (e.g., object dropped, time limit reached).
-    \item \textbf{Curriculum Manager:} Optionally adjusts task difficulty during training.
-\end{itemize}
-
-\blindtext % PLACEHOLDER: Discuss why manager-based was chosen over direct API, trade-offs, how it differs from the DextrAH-RGB code which uses direct API. Any limitations encountered.
-
-\subsection{Asset Integration}%
-\label{sec:asset_integration}%
-
-A central challenge was integrating the Agile Hand and FR3 arm as a combined articulated asset in Isaac Lab.
-
-\blindtext % PLACEHOLDER: Describe the process of importing the robot model — URDF/USD conversion, joint limits, collision meshes, contact parameters, mass/inertia properties. Any modifications needed for simulation stability. How the combined arm-hand asset differs from the Allegro + Kuka setup used in the original DextrAH-RGB.
-
-\subsection{Object Set}%
-\label{sec:object_set}%
-
-\blindtext % PLACEHOLDER: Describe the objects used for training and evaluation — how many, what types (YCB objects? industrial parts? custom?), mesh sources, randomization of object properties (mass, friction, scale).
-
-\subsection{Environment Configuration}%
-\label{sec:env_config}%
-
-\blindtext % PLACEHOLDER: Number of parallel environments, simulation frequency (Hz), control frequency (Hz), physics engine settings (PhysX parameters, solver iterations, time step), GPU requirements.
-
-%% =========================================================================
-\section{Privileged Teacher Policy}%
-\label{sec:teacher_policy}%
-
-The teacher policy is trained via reinforcement learning with access to privileged state information that would be unavailable at deployment time.
-
-\subsection{Observation Space}%
-\label{sec:teacher_obs}%
-
-The teacher's observation vector consists of the following components:
-
-\blindtext % PLACEHOLDER: List all observation components in a table or itemized list — joint positions (arm + hand), joint velocities, object pose (position + quaternion), object velocity, relative object-to-palm distance, fingertip positions, contact flags/forces, goal specification (if any), previous action. Include dimensionality of each component and total observation dimension.
-
-% TODO: Add observation space table
-% \begin{table}[htb]
-%     \centering
-%     \caption{Privileged teacher observation space.}
-%     \label{tab:teacher_obs}
-%     \begin{tabular}{lll}
-%         \toprule
-%         \textbf{Component} & \textbf{Dimension} & \textbf{Description} \\
-%         \midrule
-%         Joint positions & ... & ... \\
-%         ...
-%         \bottomrule
-%     \end{tabular}
-% \end{table}
-
-\subsection{Action Space}%
-\label{sec:action_space}%
-
-\blindtext % PLACEHOLDER: Action space definition — joint position targets for arm (7 DoF) and hand (16 DoF), action scaling, action clipping, action smoothing/filtering (exponential moving average?), control mode (position control, impedance control). Total action dimension.
-
-\subsection{Reward Design}%
-\label{sec:reward_design}%
-
-The reward function is a weighted sum of multiple terms designed to encourage successful grasping while penalizing undesirable behaviors.
-The per-step reward is computed as:
+The dexterous grasping task is modeled as a \ac{POMDP} defined by the tuple
 %
-\begin{equation}\label{eq:reward}
-    r_t = \sum_{i} w_i \cdot r_i(s_t, a_t)
+\begin{equation}\label{eq:pomdp}
+    \mathcal{M} = (\mathcal{S}, \mathcal{A}, \mathcal{O}, P, O, R, \gamma),
 \end{equation}
 %
-where $w_i$ are scalar weights and $r_i$ are individual reward terms.
-The reward terms used in this work are:
+where $\mathcal{S}$ is the state space, $\mathcal{A}$ the action space, $\mathcal{O}$ the observation space, $P: \mathcal{S} \times \mathcal{A} \to \Delta(\mathcal{S})$ the transition function, $O: \mathcal{S} \to \Delta(\mathcal{O})$ the observation function, $R: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ the reward function, and $\gamma \in [0,1)$ the discount factor.
 
-\blindtext % PLACEHOLDER: List each reward term with its formula, weight, and purpose. E.g.:
-% - Reaching reward: encourages end-effector to approach the object
-% - Grasp reward: rewards fingertip contact with the object
-% - Lift reward: rewards lifting the object above a threshold height
-% - Action penalty: penalizes large or jerky actions
-% - Orientation reward: rewards desired object orientation (if applicable)
-% - Drop penalty: negative reward when object falls
-% Include the actual weight values used.
+The full state $s_t \in \mathcal{S}$ includes the joint configuration and velocities of the arm--hand system, the object pose, velocity, and physical properties, as well as contact information.
+At deployment, the agent does not have access to $s_t$ directly; instead, it receives an observation $o_t \sim O(\cdot | s_t)$ consisting of proprioceptive measurements and camera images.
+The goal is to find a policy $\pi: \mathcal{O} \to \Delta(\mathcal{A})$ that maximizes the expected discounted return
+%
+\begin{equation}\label{eq:objective}
+    J(\pi) = \mathbb{E}_{\pi}\left[\sum_{t=0}^{T} \gamma^t R(s_t, a_t)\right].
+\end{equation}
 
-% TODO: Add reward terms table
-% \begin{table}[htb]
-%     \centering
-%     \caption{Reward terms and weights.}
-%     \label{tab:rewards}
-%     \begin{tabular}{llll}
-%         \toprule
-%         \textbf{Term} & \textbf{Weight} & \textbf{Formula} & \textbf{Purpose} \\
-%         \midrule
-%         ... & ... & ... & ... \\
-%         \bottomrule
-%     \end{tabular}
-% \end{table}
+\subsection{Privileged vs.\ Partial Observability}%
+\label{sec:priv_vs_partial}%
 
-\blindtext % PLACEHOLDER: Discuss how the reward terms were designed/iterated. What reward shaping challenges were encountered? How do these rewards differ from the original DextrAH-RGB rewards?
+Learning directly under partial observability is difficult: the policy must simultaneously learn \emph{what} to do (the manipulation skill) and \emph{how} to perceive (extracting task-relevant information from raw sensor data).
+The privileged teacher--student paradigm decouples these two challenges by introducing two distinct observation functions:
+%
+\begin{align}
+    o_t^{\text{teacher}} &= O^{\text{priv}}(s_t), \label{eq:teacher_obs} \\
+    o_t^{\text{student}} &= O^{\text{partial}}(s_t), \label{eq:student_obs}
+\end{align}
+%
+where $O^{\text{priv}}$ is a deterministic, information-complete mapping that provides the teacher with the full state (joint states, object pose, contact forces), and $O^{\text{partial}}$ is the realistic observation function that provides the student with only proprioceptive measurements and RGB images.
 
-\subsection{Network Architecture}%
-\label{sec:teacher_architecture}%
-
-\blindtext % PLACEHOLDER: Describe the teacher policy network — MLP layers, hidden dimensions, activation functions, separate actor/critic networks or shared backbone. Value function architecture. Any recurrence (LSTM) or just feedforward?
-
-\subsection{Training Procedure}%
-\label{sec:training_procedure}%
-
-The teacher is trained using \ac{PPO}~\cite{Schulman2017} with the clipped surrogate objective.
-
-\blindtext % PLACEHOLDER: PPO hyperparameters — learning rate, number of epochs per update, minibatch size, clip parameter epsilon, discount factor gamma, GAE lambda, entropy coefficient, value function coefficient. Number of parallel environments. Total training steps/time. Training hardware (GPU model). Training curves description (convergence behavior). Any curriculum used?
-
-% TODO: Add training curve figure
-% \begin{figure}[htb]
-%     \centering
-%     \includegraphics[width=0.8\textwidth]{training_curve_teacher}
-%     \caption{Teacher policy training curve: mean episode reward over training steps.}
-%     \label{fig:training_curve_teacher}
-% \end{figure}
-
-\subsection{Domain Randomization}%
-\label{sec:domain_randomization}%
-
-To improve robustness and facilitate potential sim-to-real transfer, several simulation parameters are randomized during training.
-
-\blindtext % PLACEHOLDER: List randomized parameters — object mass, friction, scale, initial pose; joint friction/damping; observation noise; action delay; gravity perturbations. Randomization ranges for each. Was ADR used or fixed uniform ranges?
-
-%% =========================================================================
-\section{Vision-Based Student Policy}%
-\label{sec:student_policy}%
-
-The student policy replaces the teacher's privileged state observations with RGB image input, enabling deployment on real hardware with only camera feedback.
-
-\subsection{Student Observation Space}%
-\label{sec:student_obs}%
-
-\blindtext % PLACEHOLDER: Student observations — RGB image resolution, number of cameras, any proprioceptive signals still included (joint positions?), image preprocessing (normalization, resizing, stacking). How are images rendered in sim (tiled rendering? photorealistic rendering?).
-
-\subsection{Student Network Architecture}%
-\label{sec:student_architecture}%
-
-\blindtext % PLACEHOLDER: CNN encoder architecture (ResNet? Custom convolutions? Pre-trained backbone?), feature dimension, MLP head, how proprioceptive inputs are fused with visual features. Total parameter count.
-
-\subsection{DAgger Distillation}%
-\label{sec:dagger_distillation}%
-
-The baseline distillation method follows the DAgger algorithm~\cite{Ross2011} as used in DextrAH-RGB~\cite{Singh2025}.
-The procedure is as follows:
-
+The two-stage pipeline is then:
 \begin{enumerate}
-    \item Execute the current student policy $\hat{\pi}$ in the environment to collect trajectories.
-    \item At each visited state $s_t$, query the privileged teacher $\pi^*$ for the expert action $a_t^* = \pi^*(s_t)$.
-    \item Aggregate the new data $\{(o_t, a_t^*)\}$ with the existing dataset $\mathcal{D}$, where $o_t$ is the student's RGB observation.
-    \item Retrain the student policy on the aggregated dataset $\mathcal{D}$ via supervised regression.
-    \item Repeat for $N$ iterations.
+    \item \textbf{Stage~1:} Train a privileged teacher $\pi^*$ that maps $o_t^{\text{teacher}} \mapsto a_t$ by solving the \ac{MDP} induced by $O^{\text{priv}}$.
+    \item \textbf{Stage~2:} Distill $\pi^*$ into a student $\hat{\pi}$ that maps $o_t^{\text{student}} \mapsto a_t$ via imitation learning.
 \end{enumerate}
 
-\blindtext % PLACEHOLDER: DAgger-specific hyperparameters — number of iterations, rollout length per iteration, dataset size, training epochs per iteration, learning rate, loss function, beta (mixing ratio between teacher and student rollouts). How was the initial dataset collected (pure teacher rollouts)?
+%% =========================================================================
+\section{Privileged Teacher Training}%
+\label{sec:privileged_teacher}%
 
-\subsection{SafeDAgger Distillation}%
-\label{sec:safedagger_distillation}%
+Since the teacher receives the full state, its training reduces to an \ac{MDP} $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$.
+The teacher is trained via \ac{PPO} with an asymmetric actor--critic architecture.
 
-SafeDAgger~\cite{Zhang2016} extends DAgger by introducing a learned safety classifier that determines when the teacher should intervene during student rollouts.
-This reduces unnecessary teacher queries and prevents the student from visiting dangerous states.
+\subsection{Asymmetric Actor--Critic}%
+\label{sec:asymmetric_ac}%
 
-\subsubsection{Safety Classifier}%
-\label{sec:safety_classifier}%
+The actor (policy) and critic (value function) receive different observation vectors.
+Let $o_t^{\text{actor}}$ denote the teacher's actor observation and $o_t^{\text{critic}}$ the critic observation, where $o_t^{\text{critic}}$ may contain additional privileged information (e.g., object velocities, contact forces) beyond $o_t^{\text{actor}}$.
+The actor parameterizes a Gaussian policy
+%
+\begin{equation}\label{eq:actor}
+    \pi_\theta(a_t | o_t^{\text{actor}}) = \mathcal{N}\left(\mu_\theta(o_t^{\text{actor}}),\; \sigma_\theta^2\right),
+\end{equation}
+%
+while the critic estimates the state--value function
+%
+\begin{equation}\label{eq:critic}
+    V_\phi(o_t^{\text{critic}}) \approx \mathbb{E}_\pi\left[\sum_{k=0}^{T-t} \gamma^k R(s_{t+k}, a_{t+k}) \;\middle|\; s_t\right].
+\end{equation}
+%
+This asymmetry allows the critic to use richer information for more accurate value estimates during training, while the actor learns a policy that depends only on the subset of state available at deployment (before distillation to the student).
 
-A binary classifier $D_\psi: \mathcal{S} \to \{0, 1\}$ is trained alongside the student policy.
-The classifier predicts whether the student's action at a given state is ``safe'' (close to the teacher's action) or ``dangerous'' (far from it):
+\subsection{PPO Objective}%
+\label{sec:ppo_objective}%
+
+The teacher is optimized using the clipped PPO surrogate objective~\cite{Schulman2017}:
+%
+\begin{equation}\label{eq:ppo_loss}
+    L^{\text{CLIP}}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t,\;\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right],
+\end{equation}
+%
+where $r_t(\theta) = \pi_\theta(a_t | o_t^{\text{actor}}) / \pi_{\theta_{\text{old}}}(a_t | o_t^{\text{actor}})$ is the importance sampling ratio, $\hat{A}_t$ is the generalized advantage estimate (GAE)~\cite{Schulman2017}, and $\epsilon$ is the clipping parameter.
+
+The advantage is computed using the critic via
+%
+\begin{equation}\label{eq:gae}
+    \hat{A}_t = \sum_{l=0}^{T-t} (\gamma \lambda)^l \delta_{t+l}, \quad \delta_t = R(s_t, a_t) + \gamma V_\phi(o_{t+1}^{\text{critic}}) - V_\phi(o_t^{\text{critic}}),
+\end{equation}
+%
+where $\lambda \in [0,1]$ is the GAE parameter that trades off bias and variance.
+
+\subsection{Reward Structure}%
+\label{sec:reward_structure}%
+
+The reward function decomposes as a weighted sum of $K$ terms:
+%
+\begin{equation}\label{eq:reward}
+    R(s_t, a_t) = \sum_{i=1}^{K} w_i \cdot r_i(s_t, a_t),
+\end{equation}
+%
+where each $r_i$ captures a different aspect of the grasping task and $w_i \in \mathbb{R}$ is its weight.
+The terms can be broadly categorized into:
+\begin{itemize}
+    \item \textbf{Approach rewards} that encourage the hand to move toward the object,
+    \item \textbf{Contact rewards} that incentivize stable multi-finger contact,
+    \item \textbf{Lift rewards} that reward raising the object to a goal height,
+    \item \textbf{Regularization penalties} that discourage jerky or excessive actions.
+\end{itemize}
+The specific reward terms and their weights are detailed in the experimental setup (\cref{sec:reward_implementation}).
+
+\subsection{Adaptive Domain Randomization}%
+\label{sec:adr_formulation}%
+
+To produce a robust teacher policy that generalizes across varying physical conditions, the training environment applies \ac{ADR}~\cite{OpenAI2020}.
+Let $\boldsymbol{\xi} \in \Xi$ denote the vector of randomizable simulation parameters (e.g., friction, mass, actuator gains).
+ADR maintains an interval $[\xi_i^{\text{lo}}, \xi_i^{\text{hi}}]$ for each parameter $\xi_i$ and uniformly samples $\xi_i \sim \mathcal{U}(\xi_i^{\text{lo}}, \xi_i^{\text{hi}})$ at each episode reset.
+
+The intervals are widened according to a curriculum: when the policy's rolling success rate exceeds a threshold $\tau_{\text{ADR}}$, a shared increment counter $n$ is advanced, and each interval is linearly interpolated from its initial range toward its maximum range:
+%
+\begin{equation}\label{eq:adr}
+    \xi_i^{\text{lo/hi}}(n) = \xi_i^{\text{start, lo/hi}} + \frac{n}{N_{\text{max}}} \left(\xi_i^{\text{max, lo/hi}} - \xi_i^{\text{start, lo/hi}}\right),
+\end{equation}
+%
+where $N_{\text{max}}$ is the total number of ADR increments.
+This creates a natural curriculum: early in training the policy sees near-nominal physics, and as it improves, the randomization range widens to cover progressively more challenging conditions.
+
+%% =========================================================================
+\section{Policy Distillation}%
+\label{sec:distillation_framework}%
+
+Given a trained teacher $\pi^*$ operating on privileged observations, the goal of distillation is to train a student policy $\hat{\pi}_\theta: \mathcal{O}^{\text{partial}} \to \mathcal{A}$ that imitates the teacher using only partial observations.
+The student minimizes the imitation loss
+%
+\begin{equation}\label{eq:imitation_loss}
+    \mathcal{L}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\left[\left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2^2\right],
+\end{equation}
+%
+where $d_{\hat{\pi}}$ is the state distribution induced by the student's own policy.
+The key challenge is that the training distribution $d_{\hat{\pi}}$ shifts as the student policy changes, causing compounding errors if naive behavioral cloning is used.
+
+\subsection{DAgger}%
+\label{sec:dagger_method}%
+
+DAgger~\cite{Ross2011} addresses the distribution shift by iteratively collecting data under the student's own policy while labeling it with the teacher's actions.
+The procedure is formalized in \cref{alg:dagger}.
+
+\begin{algorithm}[htb]
+\caption{DAgger~\cite{Ross2011}}
+\label{alg:dagger}
+\begin{algorithmic}[1]
+\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student policy $\hat{\pi}_{\theta_1}$
+\For{$i = 1, \ldots, N$}
+    \State Set roll-in policy $\pi_i = \beta_i \pi^* + (1 - \beta_i) \hat{\pi}_{\theta_i}$
+    \State Collect trajectories $\{(o_t^{\text{student}}, s_t)\}$ by executing $\pi_i$
+    \State Label: $a_t^* = \pi^*(o_t^{\text{teacher}})$ for each visited state
+    \State Aggregate: $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*)\}$
+    \State Train $\hat{\pi}_{\theta_{i+1}}$ on $\mathcal{D}$ by minimizing \cref{eq:imitation_loss}
+\EndFor
+\State \Return $\hat{\pi}_{\theta_{N+1}}$
+\end{algorithmic}
+\end{algorithm}
+
+The mixing coefficient $\beta_i \in [0, 1]$ controls the fraction of teacher vs.\ student rollouts.
+In the simplest schedule, $\beta_1 = 1$ (pure teacher) and $\beta_i = 0$ for $i > 1$ (pure student).
+After $N$ iterations, DAgger guarantees a policy with loss bounded by $\epsilon_N + O(1/N)$, where $\epsilon_N$ is the best achievable loss on $\mathcal{D}$.
+
+\subsection{SafeDAgger}%
+\label{sec:safedagger_method}%
+
+While DAgger resolves distribution shift, it does not prevent the student from visiting dangerous states during data collection, nor does it prioritize teacher queries for states where the student is most likely to fail.
+SafeDAgger~\cite{Zhang2016} augments DAgger with a learned \emph{safety policy} that determines when the teacher must intervene.
+
+\subsubsection{Safety Policy}%
+\label{sec:safety_policy}%
+
+A binary classifier $D_\psi: \mathcal{O}^{\text{partial}} \to [0, 1]$ is trained to predict whether the student's action at a given observation is safe.
+The safety label for each data point is defined as
 %
 \begin{equation}\label{eq:safety_label}
     y_t = \begin{cases}
-        1 & \text{if } \| \hat{\pi}(o_t) - \pi^*(s_t) \| \leq \delta \\
-        0 & \text{otherwise}
+        1 \quad (\text{safe}) & \text{if } \left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2 \leq \delta, \\
+        0 \quad (\text{unsafe}) & \text{otherwise},
     \end{cases}
 \end{equation}
 %
-where $\delta$ is a threshold on the action disagreement.
-
-\blindtext % PLACEHOLDER: Safety classifier architecture — input features (student observation, student action, or both?), network size, training procedure, threshold delta value, how the classifier is updated across DAgger iterations.
-
-\subsubsection{Teacher Intervention Mechanism}%
-\label{sec:intervention}%
-
-During data collection rollouts, the system uses the safety classifier to switch between student and teacher control:
+where $\delta > 0$ is a threshold on the action disagreement between student and teacher.
+The classifier is trained via binary cross-entropy on the aggregated dataset:
 %
-\begin{equation}\label{eq:intervention}
+\begin{equation}\label{eq:safety_loss}
+    \mathcal{L}_D(\psi) = -\mathbb{E}\left[y_t \log D_\psi(o_t) + (1 - y_t) \log(1 - D_\psi(o_t))\right].
+\end{equation}
+
+\subsubsection{Intervention Mechanism}%
+\label{sec:intervention_mechanism}%
+
+During data collection, the safety policy switches control between the student and teacher at each time step:
+%
+\begin{equation}\label{eq:safedagger_intervention}
     a_t = \begin{cases}
-        \hat{\pi}(o_t) & \text{if } D_\psi(o_t) = 1 \text{ (safe)} \\
-        \pi^*(s_t) & \text{if } D_\psi(o_t) = 0 \text{ (dangerous)}
+        \hat{\pi}_\theta(o_t^{\text{student}}) & \text{if } D_\psi(o_t^{\text{student}}) \geq 0.5, \\
+        \pi^*(o_t^{\text{teacher}}) & \text{otherwise}.
     \end{cases}
 \end{equation}
 %
-This mechanism creates an implicit curriculum: early in training, when the student is poor, the teacher intervenes frequently; as the student improves, it progressively takes over more of the rollout.
+This creates an adaptive, state-dependent mixing policy: the teacher intervenes precisely when the student is predicted to deviate significantly, while the student acts autonomously in states where it is competent.
+The resulting intervention rate
+%
+\begin{equation}\label{eq:beta_safedagger}
+    \beta_{\text{safe}} = \frac{1}{|\mathcal{B}|}\sum_{t \in \mathcal{B}} \mathbb{1}\left[D_\psi(o_t^{\text{student}}) < 0.5\right]
+\end{equation}
+%
+naturally decays as the student improves, providing an implicit curriculum from teacher-guided exploration to student-autonomous execution.
+The complete SafeDAgger procedure is given in \cref{alg:safedagger}.
 
-\blindtext % PLACEHOLDER: Describe the specific intervention strategy used. Was the Q-value-based risk predictor from DexSafeDagger (ChiZhang2026) also used, or only the action-disagreement classifier? How does the intervention ratio change over training? Any modifications compared to the original SafeDAgger paper?
+\begin{algorithm}[htb]
+\caption{SafeDAgger~\cite{Zhang2016}}
+\label{alg:safedagger}
+\begin{algorithmic}[1]
+\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student $\hat{\pi}_{\theta_1}$, safety policy $D_{\psi_1}$
+\For{$i = 1, \ldots, N$}
+    \For{each time step $t$ in rollout}
+        \If{$D_{\psi_i}(o_t^{\text{student}}) \geq 0.5$}
+            \State Execute $a_t = \hat{\pi}_{\theta_i}(o_t^{\text{student}})$ \Comment{Student acts}
+        \Else
+            \State Execute $a_t = \pi^*(o_t^{\text{teacher}})$ \Comment{Teacher intervenes}
+        \EndIf
+        \State Query teacher: $a_t^* = \pi^*(o_t^{\text{teacher}})$
+        \State Compute safety label $y_t$ via \cref{eq:safety_label}
+        \State $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*, y_t)\}$
+    \EndFor
+    \State Update $\hat{\pi}_{\theta_{i+1}}$ by minimizing \cref{eq:imitation_loss} on $\mathcal{D}$
+    \State Update $D_{\psi_{i+1}}$ by minimizing \cref{eq:safety_loss} on $\mathcal{D}$
+\EndFor
+\State \Return $\hat{\pi}_{\theta_{N+1}}$
+\end{algorithmic}
+\end{algorithm}
 
-\subsubsection{DexSafeDagger Extensions}%
-\label{sec:dexsafedagger}%
+\subsubsection{DexSafeDagger: Q-Value Risk Prediction}%
+\label{sec:dexsafedagger_method}%
 
-Building on the SafeDAgger framework, Zhang~\cite{ChiZhang2026} proposed DexSafeDagger, which augments the action-disagreement classifier with a Q-value-based risk predictor from the teacher's RL training.
+Zhang~\cite{ChiZhang2026} extended SafeDAgger for dexterous manipulation by replacing the action-disagreement classifier with a \emph{Q-value-based risk predictor}.
+Rather than relying solely on the L2 distance between student and teacher actions, DexSafeDagger uses the teacher's learned value function $V_\phi$ to estimate the risk of the current state.
 
-\blindtext % PLACEHOLDER: Describe which elements of DexSafeDagger were adopted in this work. Was the Q-value risk predictor used? How is the Q-value obtained (from the teacher's critic network)? How are the two signals (action disagreement + Q-value risk) combined? Any modifications or simplifications made?
+The intervention criterion becomes
+%
+\begin{equation}\label{eq:dexsafedagger}
+    a_t = \begin{cases}
+        \hat{\pi}_\theta(o_t^{\text{student}}) & \text{if } V_\phi(s_t) \geq V_{\text{safe}} \;\text{and}\; \|e_t\|_2 \leq \delta, \\
+        \pi^*(o_t^{\text{teacher}}) & \text{otherwise},
+    \end{cases}
+\end{equation}
+%
+where $e_t = \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}})$ is the action error, $V_{\text{safe}}$ is a value threshold, and $\delta$ is the action disagreement threshold.
+The dual criterion captures two complementary failure modes: (1)~states where the student's action deviates from the teacher (behavioral error), and (2)~states that the teacher's own value function identifies as high-risk (environmental danger).
 
-\subsection{Distillation Training Details}%
-\label{sec:distillation_details}%
+\subsection{Multi-Teacher Distillation}%
+\label{sec:multi_teacher}%
 
-\blindtext % PLACEHOLDER: Common training details for both DAgger and SafeDAgger — optimizer (Adam?), learning rate schedule, batch size, number of distillation iterations, rollout episodes per iteration, total training time, GPU used. Dataset management (fixed buffer size? FIFO? weighted sampling?).
+When per-object teacher policies $\{\pi_1^*, \ldots, \pi_M^*\}$ are available, distillation must route each environment instance to the correct teacher.
+Let $c_j \in \{1, \ldots, M\}$ denote the object class assigned to environment $j$.
+At each time step, the teacher action for environment $j$ is
+%
+\begin{equation}\label{eq:multi_teacher}
+    a_t^{*,j} = \pi_{c_j}^*(o_t^{\text{teacher}, j}).
+\end{equation}
+%
+The student $\hat{\pi}_\theta$ is trained on the aggregated data from all environments, learning a single policy that must generalize across all $M$ object classes.
+This multi-teacher routing is transparent to the distillation algorithm; both DAgger and SafeDAgger apply without modification, with the only change being that the ``teacher'' action at each state is provided by the object-specific expert.
 
-%% =========================================================================
-\section{Evaluation Protocol}%
-\label{sec:eval_protocol}%
-
-This section describes the metrics and procedures used to compare DAgger and SafeDAgger distillation.
-
-\subsection{Performance Metrics}%
-\label{sec:metrics}%
-
-The following metrics are used to evaluate the distilled student policies:
-
-\begin{description}
-    \item[\ac{GSR}:] Fraction of episodes where the student successfully grasps and lifts the object above a height threshold within the time limit.
-    \item[\ac{UER}:] Fraction of training episodes containing at least one unsafe event (e.g., object dropped from height, excessive joint torques, collision).
-    \item[\ac{TQR}:] Fraction of time steps where the teacher was queried during distillation (relevant for SafeDAgger).
-    \item[Convergence Speed:] Number of distillation iterations required to reach a target success rate.
-\end{description}
-
-\blindtext % PLACEHOLDER: Any additional metrics? How is "unsafe" defined precisely? What is the height threshold for successful grasp? Time limit per episode? Number of evaluation episodes per checkpoint?
-
-\subsection{Evaluation Objects}%
-\label{sec:eval_objects}%
-
-\blindtext % PLACEHOLDER: Which objects are used for evaluation? Same as training or held-out? Object categories, sizes, how many per category. Any sim-to-real evaluation planned or is everything in simulation?
-
-\subsection{Comparison Setup}%
-\label{sec:comparison_setup}%
-
-\blindtext % PLACEHOLDER: How are DAgger and SafeDAgger compared fairly? Same random seeds? Same number of total environment interactions? Same teacher policy? Number of independent runs for statistical significance? Ablations planned (e.g., varying safety threshold delta, with/without Q-value predictor)?
 %
