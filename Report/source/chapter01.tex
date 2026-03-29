@@ -35,7 +35,7 @@ Concretely, the work builds on the DextrAH-RGB framework~\cite{Singh2025}, which
 The original DextrAH-RGB work employs \acp{FGP} built on geometric fabrics~\cite{Ratliff2023} and uses DAgger for distillation.
 This thesis departs from the original approach in two key ways:
 \begin{itemize}
-    \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in the Isaac Lab manager-based environment with the Agile Hand mounted on a \ac{FR3} arm.
+    \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in an Isaac Lab direct environment (\texttt{DirectRLEnv}) with the Agile Hand mounted on a \ac{FR3} arm.
     \item The distillation step replaces DAgger with \textbf{SafeDAgger}~\cite{Zhang2016}, a query-efficient variant that learns a safety classifier to determine when the teacher should intervene, thereby reducing unsafe episodes during training. This is further informed by the DexSafeDagger framework~\cite{ChiZhang2026}, which extends SafeDAgger with Q-value-based failure prediction for dexterous manipulation.
 \end{itemize}
 
@@ -45,7 +45,7 @@ This thesis departs from the original approach in two key ways:
 The main contributions of this semester thesis are:
 
 \begin{enumerate}
-    \item \textbf{Dexterous grasping environment in Isaac Lab:} A manager-based Isaac Lab environment for training arm-hand grasping policies with the Agile Hand and \ac{FR3}, including custom reward shaping and asset integration.
+    \item \textbf{Dexterous grasping environment in Isaac Lab:} A direct RL environment (\texttt{DirectRLEnv}) in Isaac Lab for training arm-hand grasping policies with the Agile Hand and \ac{FR3}, including custom reward shaping and asset integration.
     \item \textbf{Privileged teacher policy:} A trained RL teacher policy that achieves robust dexterous grasping of diverse objects in simulation using privileged state information.
     \item \textbf{SafeDAgger-based distillation:} A comparative study of DAgger versus SafeDAgger for distilling the privileged teacher into a vision-based student, evaluating both task performance (\ac{GSR}) and training safety (number of unsafe episodes).
 \end{enumerate}

@@ -127,6 +127,14 @@ Hybrid approaches that combine system identification with moderate domain random
 While \ac{RL} can discover optimal behaviors from scratch, it requires extensive exploration and careful reward engineering.
 \ac{IL} offers an alternative by learning from expert demonstrations.
 
+\paragraph{Policy distillation.}
+The term \emph{policy distillation} refers to the process of transferring the knowledge encoded in one policy (the \emph{teacher}) into another policy (the \emph{student}) via supervised learning.
+Originally introduced in the context of model compression~\cite{Hinton2015}, where a large, expressive network is distilled into a smaller, faster one, the concept has been widely adopted in robotics for a different purpose: bridging the gap between what is available during training and what is available during deployment.
+In simulation-based robot learning, the teacher policy can be trained with access to information that is easy to obtain in simulation---exact object poses, contact forces, full kinematic state---but impossible or impractical to measure on a real robot.
+Policy distillation allows this privileged knowledge to be compressed into a student policy that relies only on deployable sensor modalities such as camera images.
+The distillation itself is an \ac{IL} problem: the student learns to imitate the teacher's actions, using the teacher as an expert demonstrator.
+The key distinction from standard \ac{IL} is that the expert is not a human but a trained policy, which can be queried at arbitrary states and at any scale---enabling interactive distillation methods such as DAgger that would be impractical with a human expert.
+
 \paragraph{Behavioral cloning.}
 The simplest form of IL is \ac{BC}, which treats policy learning as supervised regression: given a dataset of state-action pairs $\{(s_i, a_i^*)\}$ collected under an expert policy $\pi^*$, the learner minimizes $\mathbb{E}[\|\pi_\theta(s) - a^*\|^2]$.
 Pomerleau~\cite{Pomerleau1988} pioneered this approach with ALVINN, an autonomous driving system trained from human demonstrations.
@@ -186,7 +194,7 @@ The key innovations include training the privileged teacher as a \ac{FGP} and us
 
 \paragraph{Positioning of this work.}
 This thesis builds on the DextrAH-RGB framework but makes two significant departures.
-First, the privileged teacher is trained as a standard RL policy without geometric fabrics, simplifying the system and enabling the use of Isaac Lab's manager-based environment API with custom assets.
+First, the privileged teacher is trained as a standard RL policy without geometric fabrics, simplifying the system and using Isaac Lab's direct environment API (\texttt{DirectRLEnv}) with custom assets.
 Second, the distillation step replaces DAgger with SafeDAgger, incorporating safety-aware intervention during training.
 This combination has not been explored in prior work on dexterous grasping.
 
@@ -200,6 +208,6 @@ Modern robot learning relies heavily on physics simulators for data generation.
 Isaac Gym~\cite{Makoviychuk2021} introduced GPU-accelerated rigid-body and articulated-body simulation with end-to-end GPU data flow, eliminating the CPU-GPU bottleneck that limited earlier simulators.
 It supports thousands of parallel environments, enabling billion-step RL training in hours.
 Isaac Lab (formerly Orbit~\cite{Mittal2023}) builds on Isaac Sim and provides a modular, extensible framework for robot learning with two environment design paradigms: a direct API for maximum control, and a \emph{manager-based} API that structures environments into observation, action, reward, termination, and curriculum managers.
-This thesis uses the manager-based API, which facilitates rapid prototyping and clean separation of concerns, though it differs from the direct API used in the published DextrAH-RGB implementation.
+This thesis uses the direct API (\texttt{DirectRLEnv}), which provides full transparency over the simulation loop and matches the paradigm used in the published DextrAH-RGB implementation.
 
 %

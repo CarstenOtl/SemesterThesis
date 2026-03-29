@@ -23,14 +23,14 @@ The original expose/presentation planned a 3-phase pipeline (grasping -> finger-
 
 The work follows and extends the **DextrAH-RGB** approach (Singh et al. 2025):
 
-1. **Privileged Teacher Policy (RL):** Built a dexterous grasping agent in Isaac Lab using the manager-based environment API (different from DextrAH-RGB's published code). Integrated custom robot asset (Agile Hand on FR3 arm), wrote custom reward functions and environment modifications. Training works, grasping agent works.
+1. **Privileged Teacher Policy (RL):** Built a dexterous grasping agent in Isaac Lab using the direct environment API (`DirectRLEnv`, same paradigm as DextrAH-RGB). Integrated custom robot asset (Agile Hand on FR3 arm), wrote custom reward functions and environment modifications. Training works, grasping agent works.
 
 2. **Student Policy Distillation:** The original DextrAH-RGB paper uses **DAgger** for distilling the privileged teacher into a vision-based student policy. This thesis replaces DAgger with **SafeDAgger** (Zhang & Cho 2016) / **DexSafeDagger** (Chi Zhang 2026, advisor's paper) and compares the two approaches.
 
 **Key differences from DextrAH-RGB:**
 
 - No Fabric-Guided Policies (FGPs) — the FGP setup had too many intricacies for the available time; standard RL policy is used instead
-- Manager-based Isaac Lab environment (vs. the authors' direct environment API)
+- Direct environment API (`DirectRLEnv`) in Isaac Lab (same paradigm as DextrAH-RGB)
 - Custom asset integration (Agile Hand + FR3)
 - Custom reward shaping
 - SafeDAgger instead of DAgger for distillation (the scientific contribution)
@@ -48,9 +48,9 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 ### Hardware & Software Stack
 
 - **Arm:** Franka Research 3 (FR3); alternative: Agile Robots Yu5
-- **Hand:** Agile/Tekken Hand (16 DoF, thumb abduction DoF)
+- **Hand:** Agile Hand (16 DoF, thumb rotation DoF) — "Tekken" is an internal codename, use "Agile Hand" in the thesis
 - **Sensors:** RGB-D (Intel RealSense D405)
-- **Simulation:** Isaac Lab (manager-based environments)
+- **Simulation:** Isaac Lab (direct environment API, `DirectRLEnv`)
 - **Learning:** PPO for teacher policy, DAgger/SafeDAgger for student distillation
 
 ### Key References (actual method basis)
@@ -69,9 +69,9 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 ### Thesis Structure (Target ~40 pages)
 
 - `chapter01.tex` — **Introduction** (WRITTEN): Motivation, problem statement, contributions, thesis outline. ~3 pages.
-- `chapter02.tex` — **Related Work** (WRITTEN): Classical control, grasp planning, RL fundamentals, sim-to-real, IL/distillation (DAgger/SafeDAgger/DexSafeDagger), dexterous manipulation, simulation frameworks. ~6 pages.
-- `chapter03.tex` — **Methods** (WRITTEN, mathematical): Purely abstract/mathematical chapter. POMDP formulation, privileged vs partial observability, asymmetric actor-critic, PPO objective, reward structure formalization, ADR formulation, DAgger algorithm, SafeDAgger with safety policy and intervention mechanism, DexSafeDagger Q-value risk, multi-teacher distillation. Contains Algorithm blocks for DAgger and SafeDAgger. No implementation details — those are in Chapter 4.
-- `chapter04.tex` — **Experiments & Results** (MOSTLY WRITTEN, some placeholders): Contains ALL implementation details: hardware platform (FR3 + Agile Hand specs), simulation environment (Isaac Lab, PhysX config tables), object set (13 VisDex objects), episode structure, teacher obs/action space tables, reward terms table with weights, network architecture (LSTM 1024), PPO hyperparameters table, ADR parameter ranges table, student architecture (ResNet-18 + cross-attention + LSTM 512), SafeDAgger distillation config, evaluation protocol (GSR/UER/TQR metrics), teacher training results (ADR-5 and ADR-19), physics stability challenges table, SafeDAgger distillation results (run1a/1b with concrete numbers), ablation studies (envs, penalty, teacher strength). Remaining placeholders: DAgger baseline comparison (experiments pending), per-object breakdown, some figures, GPU specs, wall-clock times.
+- `chapter02.tex` — **Related Work** (WRITTEN): Classical control, grasp planning, RL fundamentals, sim-to-real, IL/distillation (policy distillation concept, DAgger/SafeDAgger/DexSafeDagger), dexterous manipulation, simulation frameworks. ~6 pages.
+- `chapter03.tex` — **Methods** (WRITTEN, mathematical): Purely abstract/mathematical chapter. POMDP formulation, privileged vs partial observability, asymmetric actor-critic, PPO objective, reward structure formalization, ADR formulation, DAgger algorithm (with L2 and KL loss variants), SafeDAgger with safety policy and intervention mechanism, DexSafeDagger Q-value risk, multi-teacher distillation. Contains Algorithm blocks for DAgger and SafeDAgger. No implementation details — those are in Chapter 4.
+- `chapter04.tex` — **Experiments & Results** (MOSTLY WRITTEN, some placeholders): Contains ALL implementation details and results. Hardware platform (FR3 + Agile Hand specs from brochure), simulation environment (Isaac Lab, PhysX config tables), object set (13 VisDex objects), episode structure, teacher obs/action space tables, reward terms table with weights, network architecture (LSTM 1024), PPO hyperparameters table, ADR parameter ranges table, student architecture (ResNet-18 + cross-attention + LSTM 512), SafeDAgger distillation config (350k iters, 16 envs), evaluation protocol (GSR/UER/TQR + physics_instability category). Results: teacher eval (96.25% GSR, 53.75% UER with breakdown), SafeDAgger distillation (runs 1a/1b/1c), standalone student eval (36.25% GSR, 67.5% UER), teacher vs student comparison table, safety analysis with failure mode breakdown, sim2real curriculum design and preliminary results. Ablations: envs, penalty, teacher strength, LSTM checkpoint resume. Remaining placeholders: DAgger baseline (run2a in progress), per-object breakdown, figures, GPU specs, wall-clock times, sim2real final results.
 - `chapter05.tex` — **Discussion & Conclusion** (PLACEHOLDER ONLY): Needs to be written.
 - `abstract.tex` — Still contains placeholder blind text.
 
@@ -79,10 +79,10 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 
 - Chapters 1-2 are **fully written** with proper citations.
 - Chapter 3 is **fully written** as a mathematical/abstract methods chapter (POMDP, PPO, DAgger, SafeDAgger, DexSafeDagger). Uses `algorithm`/`algpseudocode` for algorithm blocks.
-- Chapter 4 is **mostly written** with concrete data from experiment logs. Has tables with real numbers from exp_02/exp_04 logs. Remaining placeholders are clearly marked with `% PLACEHOLDER:` comments for: DAgger baseline (experiments not yet run), figures (need to be generated from training logs), GPU model/wall-clock times, exact critic obs dimension, per-object eval breakdown.
+- Chapter 4 is **mostly written** with concrete data from experiment logs (exp_02 through exp_06). Has tables with real numbers: teacher eval (96.25% GSR), standalone student eval (36.25% GSR), failure breakdown, sim2real curriculum, LSTM cold-start finding. Data sources: exp_02 (teacher training), exp_03 (sim2real), exp_04 (distillation runs 1a-1c + run2a setup), exp_05 (eval tooling), exp_06 (teacher vs student gap analysis). Remaining placeholders: DAgger baseline results (run2a in progress), figures, GPU model/wall-clock times, per-object eval breakdown, sim2real final results.
 - Chapter 5 is a **bare placeholder**.
 - The `abstract.tex` still contains placeholder blind text.
-- Bibliography (`literature.bib`) contains ~30 entries, all `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
+- Bibliography (`literature.bib`) contains ~31 entries (including Hinton2015 for policy distillation), all `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
 - `literature1.bib` is **no longer used** (commented out in main.tex); all references are in `literature.bib`.
 - Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package with POMDP added).
 - `.gitignore` is configured to exclude LaTeX build artifacts but keep PDFs.
@@ -126,11 +126,13 @@ rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.to
 - `Report/AIRlatex.cls` — TUM AIRlatex document class (do not edit)
 - `Report/cover.tex` — Separate document for printing a physical cover
 - `Report/source/` — Chapter files (`chapter01.tex` through `chapter05.tex`), `abstract.tex`, `appendix.tex`
-- `Report/source/literature.bib` — Bibliography database (single active bib file, ~30 entries)
+- `Report/source/literature.bib` — Bibliography database (single active bib file, ~31 entries)
 - `Report/figures/` — Images and TikZ figures (supports PDF, PNG, TikZ formats)
+  - `Report/figures/trained_objects/` — Directory for training object images
 - `additonal_info/` — Reference materials:
   - `Masters Thesis Expose - Carsten Oertel.pdf` — Full expose with objectives, WPs, milestones, research questions
   - `SemesterThesis-Introduction-Presentation.pdf` — Introduction presentation with SotA review, pipeline diagram, evaluation plan
+  - `AR-AgileHand-Productflyer-SCREEN-en.pdf` — Agile Hand product brochure with specs (weight, DoF, joint ranges, fingertip force, velocity)
 - `.gitignore` — Excludes LaTeX build artifacts, keeps PDFs
 
 ## Key Conventions

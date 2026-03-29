@@ -141,6 +141,13 @@ The student minimizes the imitation loss
 \end{equation}
 %
 where $d_{\hat{\pi}}$ is the state distribution induced by the student's own policy.
+When both teacher and student output Gaussian distributions, an alternative is the KL divergence loss:
+%
+\begin{equation}\label{eq:kl_loss}
+    \mathcal{L}_{\text{KL}}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\left[D_{\text{KL}}\!\left(\pi^*(\cdot | o_t^{\text{teacher}}) \;\|\; \hat{\pi}_\theta(\cdot | o_t^{\text{student}})\right)\right],
+\end{equation}
+%
+which matches the full action distribution rather than only the mean, and has been found to outperform L2 regression in prior work on visuomotor distillation~\cite{Singh2025}.
 The key challenge is that the training distribution $d_{\hat{\pi}}$ shifts as the student policy changes, causing compounding errors if naive behavioral cloning is used.
 
 \subsection{DAgger}%
