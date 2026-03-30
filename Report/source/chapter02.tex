@@ -155,10 +155,10 @@ During data collection, the system switches from the student to the expert whene
 This mechanism reduces unnecessary expert queries and prevents the student from executing actions in states where it is likely to fail, creating an implicit curriculum from safe to progressively more challenging states.
 
 \paragraph{DexSafeDagger.}
-Zhang~\cite{ChiZhang2026} extended the SafeDAgger framework specifically for dexterous manipulation by introducing a \emph{Q-value-based risk predictor}.
+Zhang~\cite{ChiZhang2026} proposed DexSafeDagger, an extension of SafeDAgger for dexterous manipulation that introduces a \emph{Q-value-based risk predictor}.
+This work has been submitted for publication but has not yet undergone peer review.
 Rather than relying solely on action disagreement between teacher and student, DexSafeDagger uses a learned Q-value function from the teacher's RL training to estimate the risk of each state.
 The teacher intervenes when either the action disagreement exceeds a threshold or the Q-value indicates a high-risk state.
-This approach reduced unsafe episodes by up to 80\% during early training stages compared to vanilla DAgger, while maintaining comparable task success rates.
 DexSafeDagger is particularly relevant for dexterous hands, where unsafe exploration can cause hardware damage or lead to irrecoverable failure states such as dropping the object.
 
 \paragraph{Privileged teacher-student distillation.}

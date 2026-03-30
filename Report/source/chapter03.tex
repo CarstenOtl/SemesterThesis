@@ -225,23 +225,23 @@ naturally decays as the student improves, providing an implicit curriculum from 
 The complete SafeDAgger procedure is given in \cref{alg:safedagger}.
 
 \begin{algorithm}[htb]
-\caption{SafeDAgger~\cite{Zhang2016}}
+\caption{SafeDAgger~\cite{Zhang2016}. \hlsafe{Blue lines} indicate modifications relative to DAgger (\cref{alg:dagger}).}
 \label{alg:safedagger}
 \begin{algorithmic}[1]
-\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student $\hat{\pi}_{\theta_1}$, safety policy $D_{\psi_1}$
+\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student $\hat{\pi}_{\theta_1}$, \hlsafe{safety policy $D_{\psi_1}$}
 \For{$i = 1, \ldots, N$}
     \For{each time step $t$ in rollout}
-        \If{$D_{\psi_i}(o_t^{\text{student}}) \geq 0.5$}
-            \State Execute $a_t = \hat{\pi}_{\theta_i}(o_t^{\text{student}})$ \Comment{Student acts}
+        \If{\hlsafe{$D_{\psi_i}(o_t^{\text{student}}) \geq 0.5$}}
+            \State \hlsafe{Execute $a_t = \hat{\pi}_{\theta_i}(o_t^{\text{student}})$} \Comment{\hlsafe{Student acts}}
         \Else
-            \State Execute $a_t = \pi^*(o_t^{\text{teacher}})$ \Comment{Teacher intervenes}
+            \State \hlsafe{Execute $a_t = \pi^*(o_t^{\text{teacher}})$} \Comment{\hlsafe{Teacher intervenes}}
         \EndIf
         \State Query teacher: $a_t^* = \pi^*(o_t^{\text{teacher}})$
-        \State Compute safety label $y_t$ via \cref{eq:safety_label}
-        \State $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*, y_t)\}$
+        \State \hlsafe{Compute safety label $y_t$ via \cref{eq:safety_label}}
+        \State $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*$, \hlsafe{$y_t$}$)\}$
     \EndFor
     \State Update $\hat{\pi}_{\theta_{i+1}}$ by minimizing \cref{eq:imitation_loss} on $\mathcal{D}$
-    \State Update $D_{\psi_{i+1}}$ by minimizing \cref{eq:safety_loss} on $\mathcal{D}$
+    \State \hlsafe{Update $D_{\psi_{i+1}}$ by minimizing \cref{eq:safety_loss} on $\mathcal{D}$}
 \EndFor
 \State \Return $\hat{\pi}_{\theta_{N+1}}$
 \end{algorithmic}
@@ -250,7 +250,8 @@ The complete SafeDAgger procedure is given in \cref{alg:safedagger}.
 \subsubsection{DexSafeDagger: Q-Value Risk Prediction}%
 \label{sec:dexsafedagger_method}%
 
-Zhang~\cite{ChiZhang2026} extended SafeDAgger for dexterous manipulation by replacing the action-disagreement classifier with a \emph{Q-value-based risk predictor}.
+Zhang~\cite{ChiZhang2026} proposed an extension of SafeDAgger for dexterous manipulation that replaces the action-disagreement classifier with a \emph{Q-value-based risk predictor}.
+This work, referred to as DexSafeDagger, has been submitted for publication but has not yet undergone peer review.
 Rather than relying solely on the L2 distance between student and teacher actions, DexSafeDagger uses the teacher's learned value function $V_\phi$ to estimate the risk of the current state.
 
 The intervention criterion becomes
@@ -264,19 +265,5 @@ The intervention criterion becomes
 %
 where $e_t = \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}})$ is the action error, $V_{\text{safe}}$ is a value threshold, and $\delta$ is the action disagreement threshold.
 The dual criterion captures two complementary failure modes: (1)~states where the student's action deviates from the teacher (behavioral error), and (2)~states that the teacher's own value function identifies as high-risk (environmental danger).
-
-\subsection{Multi-Teacher Distillation}%
-\label{sec:multi_teacher}%
-
-When per-object teacher policies $\{\pi_1^*, \ldots, \pi_M^*\}$ are available, distillation must route each environment instance to the correct teacher.
-Let $c_j \in \{1, \ldots, M\}$ denote the object class assigned to environment $j$.
-At each time step, the teacher action for environment $j$ is
-%
-\begin{equation}\label{eq:multi_teacher}
-    a_t^{*,j} = \pi_{c_j}^*(o_t^{\text{teacher}, j}).
-\end{equation}
-%
-The student $\hat{\pi}_\theta$ is trained on the aggregated data from all environments, learning a single policy that must generalize across all $M$ object classes.
-This multi-teacher routing is transparent to the distillation algorithm; both DAgger and SafeDAgger apply without modification, with the only change being that the ``teacher'' action at each state is provided by the object-specific expert.
 
 %

@@ -36,7 +36,7 @@ The original DextrAH-RGB work employs \acp{FGP} built on geometric fabrics~\cite
 This thesis departs from the original approach in two key ways:
 \begin{itemize}
     \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in an Isaac Lab direct environment (\texttt{DirectRLEnv}) with the Agile Hand mounted on a \ac{FR3} arm.
-    \item The distillation step replaces DAgger with \textbf{SafeDAgger}~\cite{Zhang2016}, a query-efficient variant that learns a safety classifier to determine when the teacher should intervene, thereby reducing unsafe episodes during training. This is further informed by the DexSafeDagger framework~\cite{ChiZhang2026}, which extends SafeDAgger with Q-value-based failure prediction for dexterous manipulation.
+    \item The distillation step replaces DAgger with \textbf{SafeDAgger}~\cite{Zhang2016}, a query-efficient variant that learns a safety classifier to determine when the teacher should intervene, thereby reducing unsafe episodes during training. This is further informed by DexSafeDagger~\cite{ChiZhang2026}, an unpublished extension of SafeDAgger that incorporates Q-value-based failure prediction for dexterous manipulation.
 \end{itemize}
 
 \section{Contributions}%

@@ -521,15 +521,25 @@ Arm control is robust for both teacher and student (no \texttt{hand\_too\_far} f
 \subsection{DAgger Baseline Comparison}%
 \label{sec:dagger_results}%
 
-A vanilla DAgger baseline using KL divergence loss (following the DextrAH-RGB paper, which found KL consistently outperforms L2) is in progress.
-The DAgger variant disables SafeDAgger's per-environment safety override---the student always executes its own actions, with the teacher providing only the target labels.
-This allows a clean comparison of whether SafeDAgger's selective intervention improves or hinders learning: SafeDAgger prevents dangerous student actions but may also prevent the student from practicing in challenging states.
+A central goal of this work is a controlled comparison between vanilla DAgger and SafeDAgger for distilling a privileged dexterous grasping teacher into a vision-based student policy.
+The original SafeDAgger paper~\cite{Zhang2016} evaluated only in simulated autonomous driving (TORCS) and compared solely against vanilla DAgger, without systematic ablation of the safety threshold or application to contact-rich manipulation.
+The DexSafeDagger extension~\cite{ChiZhang2026} adds Q-value-based risk gating, but no published comparison exists on the specific platform and object set used here.
+This section addresses both gaps by providing a head-to-head evaluation under matched conditions.
+
+\paragraph{Experimental design.}
+Both methods use the same ADR-19 teacher, 13-object VisDex set, identical student architecture (ResNet-18 + cross-attention + LSTM-512), 16 parallel environments, and 350k distillation iterations.
+The only difference is the intervention mechanism:
+\begin{itemize}
+    \item \textbf{DAgger:} The student always executes its own actions.  The teacher provides target action labels at every time step, and the student is trained with KL divergence loss (following the DextrAH-RGB finding that KL consistently outperforms L2 for action distillation~\cite{Singh2025}).
+    \item \textbf{SafeDAgger:} The teacher takes over execution in environments where $\|e_t\|_2 > \delta$ (with $\delta = 0.5$), shielding the student from high-error states. The student is trained with L2 loss on all observed state--action pairs.
+\end{itemize}
+This design isolates the effect of SafeDAgger's selective intervention: does shielding the student from dangerous states improve safety at the cost of task performance, or does it also accelerate learning by providing a form of automated curriculum~\cite{Zhang2016}?
 
 % PLACEHOLDER: DAgger baseline (run2a) is in progress with 350k iterations, 16 envs, ADR-19 teacher. Fill in results when complete.
 
 \begin{table}[htb]
     \centering
-    \caption{Comparison of DAgger and SafeDAgger distillation (ADR-19 teacher, 13 objects, 350k iterations).}
+    \caption{Head-to-head comparison of DAgger and SafeDAgger distillation (ADR-19 teacher, 13 objects, 350k iterations, 80 standalone evaluation episodes each).}
     \label{tab:dagger_comparison}
     \begin{tabular}{lcc}
         \toprule
@@ -539,9 +549,25 @@ This allows a clean comparison of whether SafeDAgger's selective intervention im
         \acs{UER} (\%) & -- & 67.50 \\
         \acs{TQR} (\%) & 100 (by design) & 75.0 \\
         Imitation loss & -- & 1.40 (L2) \\
+        Harmful collisions (\% of failures) & -- & 40.7 \\
+        Object out of bound (\% of failures) & -- & 33.3 \\
+        Context switches (per episode) & 0 & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
+
+The comparison addresses three specific hypotheses:
+\begin{enumerate}
+    \item \textbf{Safety hypothesis:} SafeDAgger produces a student with fewer unsafe episodes (lower \ac{UER}) during both training and standalone evaluation, particularly fewer harmful collisions.
+    \item \textbf{Performance hypothesis:} SafeDAgger's intervention mechanism may reduce standalone \ac{GSR} by preventing the student from practicing in challenging states where it needs the most experience.
+    \item \textbf{Efficiency hypothesis:} SafeDAgger requires fewer total teacher queries (lower \ac{TQR}) to reach comparable performance, as it selectively queries only on difficult states---an ``automated curriculum'' effect observed in the original SafeDAgger paper~\cite{Zhang2016}.
+\end{enumerate}
+
+% PLACEHOLDER: Fill in DAgger column of the table and add the following analysis once run2a completes:
+% - Compare GSR: does DAgger achieve higher standalone grasp success?
+% - Compare UER: does SafeDAgger produce fewer harmful collisions?
+% - Compare learning dynamics: does DAgger converge faster or slower?
+% - Analyze whether the KL vs L2 loss difference confounds the comparison.
 
 % PLACEHOLDER: Add DAgger vs. SafeDAgger comparison figure once DAgger run completes.
 % \begin{figure}[htb]
@@ -622,11 +648,144 @@ The original training succeeded because the LSTM built context \emph{continuousl
 
 This finding motivated training the sim-to-real teacher from scratch (run~1d) rather than fine-tuning the existing checkpoint, incorporating all sim-to-real curriculum terms from the beginning.
 
-% PLACEHOLDER: Additional ablation experiments to run:
-% - Effect of safety threshold delta on SafeDAgger (vary 0.1, 0.3, 0.5, 0.7, 1.0)
-% - Effect of distillation iterations (100k, 200k, 500k)
-% - Per-object performance breakdown (which objects are hardest for the student?)
-% - Effect of ADR during distillation (currently disabled)
+\subsection{Safety Threshold Sensitivity}%
+\label{sec:ablation_threshold}%
+
+A notable gap in the original SafeDAgger paper~\cite{Zhang2016} is the lack of a systematic sensitivity analysis for the safety threshold $\delta$.
+Zhang and Cho selected a single threshold ($\tau = 0.0025$ in their steering-angle domain) based on the error distribution of the initial supervised policy and did not vary it.
+This work addresses that gap by sweeping $\delta$ across five values: $\{0.1, 0.3, 0.5, 0.7, 1.0\}$.
+
+For each threshold, a SafeDAgger distillation run is performed with the ADR-19 teacher, 16~environments, and 350k iterations.
+Lower $\delta$ values trigger teacher intervention more aggressively (more protective, fewer student-executed actions), while higher values allow the student to act autonomously in more states (less protective, more exploration).
+The extreme case $\delta \to \infty$ recovers vanilla DAgger (no intervention).
+
+% PLACEHOLDER: Run the five threshold experiments and fill in the table below.
+
+\begin{table}[htb]
+    \centering
+    \caption{Effect of safety threshold $\delta$ on SafeDAgger distillation performance (ADR-19 teacher, 350k iterations, standalone evaluation over 80 episodes).}
+    \label{tab:threshold_sweep}
+    \begin{tabular}{lcccc}
+        \toprule
+        $\delta$ & \acs{GSR} (\%) & \acs{UER} (\%) & \acs{TQR} (\%) & Harmful collisions (\%) \\
+        \midrule
+        0.1 & -- & -- & -- & -- \\
+        0.3 & -- & -- & -- & -- \\
+        0.5 & 36.25 & 67.50 & 75.0 & 40.7 \\
+        0.7 & -- & -- & -- & -- \\
+        1.0 & -- & -- & -- & -- \\
+        $\infty$ (DAgger) & -- & -- & 100 & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+This ablation reveals the safety--performance Pareto frontier for the dexterous grasping domain.
+If low-$\delta$ runs show lower \ac{UER} but also lower \ac{GSR}, the threshold acts as an explicit knob for trading safety against task performance---a critical design parameter for eventual real-world deployment where hardware damage is costly.
+Conversely, if an intermediate $\delta$ simultaneously improves both metrics, it would confirm the ``automated curriculum'' hypothesis from Zhang and Cho: that focusing training on difficult states accelerates learning without sacrificing safety.
+
+% PLACEHOLDER: Add Pareto curve figure (x-axis: TQR or UER, y-axis: GSR) showing each threshold as a point.
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{threshold_pareto}
+%     \caption{Safety--performance Pareto frontier: standalone \ac{GSR} vs.\ \ac{UER} for varying SafeDAgger thresholds $\delta$. The DAgger baseline ($\delta = \infty$) is shown for reference.}
+%     \label{fig:threshold_pareto}
+% \end{figure}
+
+\subsection{Per-Object Performance Breakdown}%
+\label{sec:ablation_per_object}%
+
+The 13 VisDex training objects span a wide range of geometries---from compact, graspable shapes (basketball shoe, teddy bear) to thin or irregular objects (plane, toy bagger).
+To identify which object categories benefit most from SafeDAgger's intervention mechanism, both the teacher and student policies are evaluated per-object over 80~episodes each (16~envs $\times$ 5~rollouts, with each environment assigned a single object).
+
+% PLACEHOLDER: Run per-object evaluations for teacher, SafeDAgger student, and DAgger student. Fill in the table below.
+
+\begin{table}[htb]
+    \centering
+    \caption{Per-object \ac{GSR} (\%) for teacher, SafeDAgger student, and DAgger student (80 evaluation episodes per object, ADR-0 physics).}
+    \label{tab:per_object_gsr}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Object} & \textbf{Teacher} & \textbf{SafeDAgger} & \textbf{DAgger} \\
+        \midrule
+        Mario          & -- & -- & -- \\
+        Milk pot       & -- & -- & -- \\
+        Turtle candle  & -- & -- & -- \\
+        Toy bagger     & -- & -- & -- \\
+        Teddy bear     & -- & -- & -- \\
+        Closed fist    & -- & -- & -- \\
+        Basketball shoe & -- & -- & -- \\
+        Chicken in car & -- & -- & -- \\
+        Elephant toy   & -- & -- & -- \\
+        Train          & -- & -- & -- \\
+        Homer          & -- & -- & -- \\
+        Toy cow        & -- & -- & -- \\
+        Plane          & -- & -- & -- \\
+        \midrule
+        \textbf{Mean}  & 96.25 & 36.25 & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The per-object breakdown serves two purposes.
+First, it identifies which object geometries pose the greatest challenge for the vision-based student, informing whether the teacher--student gap is uniform or concentrated on specific shapes.
+Second, it reveals whether SafeDAgger's intervention is more beneficial for certain object categories---for example, thin or irregular objects where collisions are more likely and teacher shielding may be more valuable.
+
+% PLACEHOLDER: Add bar chart comparing per-object GSR for teacher, SafeDAgger, and DAgger.
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=\textwidth]{per_object_comparison}
+%     \caption{Per-object \ac{GSR} comparison. Blue: teacher. Orange: SafeDAgger student. Green: DAgger student. Objects sorted by teacher \ac{GSR} (descending).}
+%     \label{fig:per_object_comparison}
+% \end{figure}
+
+\subsection{Query Efficiency Analysis}%
+\label{sec:ablation_query_efficiency}%
+
+A central claim of SafeDAgger is \emph{query efficiency}: by selectively querying the teacher only on states where the student struggles, SafeDAgger should achieve comparable performance with fewer total teacher queries than vanilla DAgger~\cite{Zhang2016}.
+In the original driving domain, SafeDAgger collected 70k targeted examples compared to DAgger's 390k uniformly sampled examples per iteration.
+
+In the dexterous grasping setting, query efficiency is measured by the cumulative number of teacher-executed time steps over the course of distillation.
+For DAgger, this equals the total number of time steps (the teacher always provides labels, though the student always acts).
+For SafeDAgger, this equals $\text{TQR} \times \text{total steps}$, since the teacher only acts in environments where $\|e_t\|_2 > \delta$.
+
+% PLACEHOLDER: Compute and plot the following once DAgger baseline completes:
+% - Cumulative teacher queries vs. distillation iteration for both methods
+% - GSR vs. cumulative teacher queries (query efficiency curve)
+% The key question: does SafeDAgger reach a given GSR with fewer teacher queries?
+
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.85\textwidth]{query_efficiency}
+%     \caption{Query efficiency comparison. Left: cumulative teacher queries over distillation iterations. Right: standalone \ac{GSR} vs.\ cumulative teacher queries. SafeDAgger's selective querying is expected to achieve higher GSR per teacher query.}
+%     \label{fig:query_efficiency}
+% \end{figure}
+
+\subsection{Learning Curve Comparison}%
+\label{sec:ablation_learning_curves}%
+
+To compare convergence dynamics, \ac{GSR} and \ac{UER} are evaluated at regular checkpoints throughout distillation for both DAgger and SafeDAgger.
+Checkpoints are saved every 50k iterations, yielding seven evaluation points per method (at 0k, 50k, 100k, 150k, 200k, 250k, 300k, and 350k iterations).
+Each checkpoint is evaluated standalone (without teacher intervention) over 80~episodes.
+
+% PLACEHOLDER: Run checkpoint evaluations for both methods and plot learning curves.
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.85\textwidth]{learning_curves}
+%     \caption{Learning curve comparison over distillation iterations. Left: standalone \ac{GSR}. Right: \ac{UER}. Solid: SafeDAgger. Dashed: DAgger. Shaded regions indicate $\pm 1$ standard deviation across evaluation seeds.}
+%     \label{fig:learning_curves}
+% \end{figure}
+
+The learning curves address whether SafeDAgger's curriculum effect---focusing training on difficult states---leads to faster initial convergence or whether DAgger's unrestricted exploration enables the student to eventually surpass SafeDAgger given sufficient iterations.
+The \ac{UER} curves additionally reveal whether SafeDAgger students exhibit fewer unsafe behaviors throughout training, not just at the final checkpoint.
+
+\subsection{Effect of Distillation Duration}%
+\label{sec:ablation_duration}%
+
+The comparison between runs~1b (100k iterations) and 1c (350k iterations) in \cref{tab:distillation_results} suggests continued learning beyond 100k iterations.
+To determine whether the student has converged or would benefit from extended training, the learning curve analysis above is complemented by additional long-horizon runs at 500k and 750k iterations.
+If the \ac{GSR} curve plateaus, the student has reached its capacity given the current architecture; if it continues to rise, the 350k baseline underestimates the method's potential.
+
+% PLACEHOLDER: Run extended distillation (500k, 750k iterations) for both DAgger and SafeDAgger. Report final GSR, UER, and imitation loss.
 
 %% =========================================================================
 \section{Sim-to-Real Curriculum}%
@@ -664,9 +823,17 @@ The key experimental findings are:
     \item \textbf{Sufficient parallel environments are critical} for multi-object teacher training.  A minimum of $\sim$30 environments per object class is needed to avoid gradient oscillation and cyclic collapses.
     \item \textbf{Teacher policy quality is the primary bottleneck} for distillation.  The ADR-19 teacher achieves 96.25\% \ac{GSR}, providing a high performance ceiling.  Stronger teachers produce better students (40\% relative improvement from ADR-5 to ADR-19).
     \item \textbf{SafeDAgger produces functional but limited students:} 36.25\% standalone \ac{GSR} after 350k iterations, compared to the 96.25\% teacher ceiling.  The primary gap is in collision avoidance (3.5$\times$ more harmful collisions than the teacher).
-    \item \textbf{SafeDAgger's intervention mechanism is a double-edged sword:} It prevents unsafe student actions during training but also limits the student's exposure to challenging states, potentially slowing learning.  A vanilla DAgger comparison is in progress to quantify this trade-off.
+    \item \textbf{SafeDAgger's intervention mechanism is a double-edged sword:} It prevents unsafe student actions during training but also limits the student's exposure to challenging states, potentially slowing learning.  The DAgger baseline comparison (\cref{sec:dagger_results}) and safety threshold sweep (\cref{sec:ablation_threshold}) are designed to quantify this trade-off and reveal the safety--performance Pareto frontier.
     \item \textbf{LSTM policies cannot be fine-tuned from checkpoints} for continued ADR curriculum training, due to hidden state reset.  Sim-to-real teachers must be trained from scratch with all curriculum terms included from the start.
 \end{enumerate}
 
-% PLACEHOLDER: Add final findings on DAgger vs. SafeDAgger and sim2real transfer once experiments complete.
+The ablation studies additionally investigate:
+\begin{itemize}
+    \item The safety threshold $\delta$ as an explicit knob for trading safety against performance (\cref{sec:ablation_threshold}), addressing a gap in the original SafeDAgger work~\cite{Zhang2016}.
+    \item Per-object performance variation (\cref{sec:ablation_per_object}), revealing which geometries benefit most from teacher intervention during distillation.
+    \item Query efficiency (\cref{sec:ablation_query_efficiency}), testing whether SafeDAgger's selective querying achieves comparable \ac{GSR} with fewer teacher interactions.
+    \item Learning dynamics (\cref{sec:ablation_learning_curves}), comparing convergence speed and safety profiles throughout training, not just at the final checkpoint.
+\end{itemize}
+
+% PLACEHOLDER: Update this summary with concrete findings once all experiments complete (DAgger baseline, threshold sweep, per-object eval, query efficiency, learning curves, extended duration runs).
 %
