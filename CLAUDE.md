@@ -166,3 +166,28 @@ When writing thesis content:
 - Use `\label{}` and `\cref{}` consistently for all numbered elements.
 - Use `\blindtext` as placeholder for sections that need the author's input — add a `% PLACEHOLDER:` comment explaining what content is needed.
 - When adding new bibliography entries, do NOT include `abstract` or `note` fields (they crash biber/pdflatex).
+
+### Readability for Non-Experts
+
+The thesis should be accessible to readers who are not specialists in dexterous manipulation or reinforcement learning. Two key rules:
+
+**1. No em-dashes (`---`) for inline explanations.** Use proper linguistic connectors instead. Em-dashes are ambiguous and force the reader to guess the relationship between clauses.
+
+| Instead of | Write |
+|---|---|
+| `term---explanation---continuation` | `term, which is explanation, continuation` |
+| `concept---meaning X` | `concept, meaning X` / `concept, referring to X` |
+| `method---doing X and Y` | `method, in which X and Y` |
+| `result---a significant gap` | `result, which represents a significant gap` |
+| `list of things---A, B, C---rest` | `list of things, such as A, B, and C, rest` / `including A, B, and C` |
+| `cause---effect` | `cause, thereby effect` / `cause; effect` / `cause, as effect` |
+
+**2. Explain non-trivial terms on first use.** When introducing a technical term or concept that a mechanical engineering student might not know, provide an inline explanation with examples. Do not assume the reader knows domain-specific jargon.
+
+| Instead of | Write |
+|---|---|
+| `manipulation primitives` | `manipulation primitives, which are hand-coded motion sequences for specific subtasks such as "close fingers to power grasp" or "rotate object using thumb opposition"` |
+| `force closure` | `force closure, meaning the ability to resist arbitrary external wrenches through the contact forces alone` |
+| `sim-to-real gap` | `sim-to-real gap, referring to discrepancies between simulated and real physics, perception, and actuation` |
+
+The explanation should appear at the **first mention** of the term. Subsequent uses can use the term without re-explanation.

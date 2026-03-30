@@ -10,13 +10,13 @@ This chapter motivates the problem of dexterous robotic grasping, states the spe
 Multi-fingered dexterous hands offer robots the potential to interact with the world in a manner approaching human versatility.
 Unlike parallel-jaw grippers, which are limited to a narrow set of grasp geometries, anthropomorphic hands can conform to arbitrary object shapes, reorient objects in-hand, and wield tools~\cite{Tang2024}.
 Despite this potential, high \ac{DoF} hands remain largely confined to research laboratories.
-The core bottleneck is not hardware---several capable platforms exist, including the Allegro Hand, the Shadow Dexterous Hand, and the Agile Hand used in this work---but rather the difficulty of synthesizing reliable control policies for contact-rich tasks.
+The core bottleneck is not hardware, as several capable platforms exist, including the Allegro Hand, the Shadow Dexterous Hand, and the Agile Hand used in this work, but rather the difficulty of synthesizing reliable control policies for contact-rich tasks.
 
 Traditional analytic approaches to grasp planning rely on known object models and precise contact modeling, assumptions that rarely hold in unstructured environments~\cite{Wu2022}.
 Learning-based methods, particularly \ac{DRL}, have recently demonstrated impressive dexterous manipulation capabilities in simulation~\cite{Handa2024, Lin2025}.
 However, transferring these policies to real hardware introduces a fundamental challenge: during training, RL agents have access to privileged information (exact object poses, contact forces, full state vectors) that is unavailable at deployment time, where the robot must rely on noisy sensory observations such as camera images.
 
-The dominant strategy to bridge this gap is \emph{policy distillation}---training a privileged \emph{teacher} policy in simulation with full state access, then distilling its behavior into a \emph{student} policy that operates from realistic sensor inputs~\cite{Singh2025, Lum2024}.
+The dominant strategy to bridge this gap is \emph{policy distillation}, in which a privileged \emph{teacher} policy is trained in simulation with full state access and its behavior is then distilled into a \emph{student} policy that operates from realistic sensor inputs~\cite{Singh2025, Lum2024}.
 The DAgger algorithm~\cite{Ross2011} is widely used for this distillation step, as it addresses the distribution shift between expert demonstrations and student-induced trajectories through iterative data aggregation.
 Yet standard DAgger is agnostic to safety: it queries the teacher uniformly, including in states where the student already performs well, and does not prevent the student from visiting dangerous states during training.
 For dexterous hands, where unsafe actions can cause hardware damage (e.g., jamming or overloading finger joints) or lead to unstable contact configurations, a safety-aware distillation procedure is desirable.
@@ -60,7 +60,7 @@ The remainder of this thesis is structured as follows:
 \begin{description}
     \item[Chapter~\ref{ch:related_work}] reviews related work on dexterous grasping, policy distillation methods (DAgger, SafeDAgger), and sim-to-real transfer for manipulation.
     \item[Chapter~\ref{ch:methods}] formalizes the problem as a \ac{POMDP}, derives the privileged teacher training objective, and presents the mathematical framework for DAgger, SafeDAgger, and DexSafeDagger distillation.
-    \item[Chapter~\ref{ch:experiments}] describes the experimental setup---hardware platform, simulation environment, reward design, and network architectures---presents teacher training results and SafeDAgger distillation experiments, and compares DAgger and SafeDAgger.
+    \item[Chapter~\ref{ch:experiments}] describes the experimental setup, including the hardware platform, simulation environment, reward design, and network architectures, presents teacher training results and SafeDAgger distillation experiments, and compares DAgger and SafeDAgger.
     \item[Chapter~\ref{ch:conclusion}] discusses the findings, limitations, and directions for future work in the master's thesis.
 \end{description}
 %

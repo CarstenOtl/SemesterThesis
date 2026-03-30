@@ -3,7 +3,8 @@
 \label{ch:related_work}%
 
 This chapter surveys the foundations and recent advances relevant to this thesis.
-It begins with classical robot control and grasp planning, then covers reinforcement learning and sim-to-real transfer, followed by imitation learning and policy distillation, and concludes with the state of the art in dexterous grasping and the simulation frameworks that enable it.
+It begins with classical robot control and grasp planning, discusses their limitations for dexterous manipulation, and motivates the shift to data-driven methods.
+It then covers reinforcement learning and sim-to-real transfer, followed by imitation learning and policy distillation, and concludes with the state of the art in dexterous grasping and the simulation frameworks that enable it.
 
 %% =========================================================================
 \section{Classical Robot Control}%
@@ -18,56 +19,59 @@ A robot arm with $n$ joints is described by its rigid-body dynamics~\cite{Sicili
 %
 where $\boldsymbol{q} \in \mathbb{R}^n$ is the joint configuration, $\boldsymbol{M}$ the inertia matrix, $\boldsymbol{C}$ the Coriolis and centrifugal term, $\boldsymbol{g}$ the gravity vector, and $\boldsymbol{\tau}$ the applied joint torques.
 
-\paragraph{Position and torque control.}
+\paragraph{Position control.}
 The most common approach to manipulator control is computed torque control, which uses an inverse dynamics model to linearize the system, followed by a PD controller in joint space.
 For a desired trajectory $\boldsymbol{q}_d(t)$, the control law takes the form
 $\boldsymbol{\tau} = \boldsymbol{M}(\boldsymbol{q})(\ddot{\boldsymbol{q}}_d + K_p \boldsymbol{e} + K_d \dot{\boldsymbol{e}}) + \boldsymbol{C}(\boldsymbol{q}, \dot{\boldsymbol{q}})\dot{\boldsymbol{q}} + \boldsymbol{g}(\boldsymbol{q})$,
 where $\boldsymbol{e} = \boldsymbol{q}_d - \boldsymbol{q}$ is the tracking error~\cite{Siciliano2009}.
-While effective for trajectory following, this approach assumes a known dynamics model and does not explicitly account for interaction forces with the environment.
+PD position control is used extensively in both simulation and deployment for this work: in simulation, each joint is driven by a PD controller that tracks the policy's position targets, and on the real robot, the low-level firmware runs PD loops at 1\,kHz.
+While effective for trajectory following, pure position control assumes a known dynamics model and does not explicitly account for interaction forces, which can lead to excessive contact forces during grasping.
 
-\paragraph{Impedance control.}
-When a robot must interact with objects or the environment, pure position control can lead to excessive forces.
-Hogan~\cite{Hogan1985} introduced \emph{impedance control}, which regulates the dynamic relationship between the manipulator's motion and the contact forces rather than tracking a trajectory.
-The end-effector behaves as a mass-spring-damper system:
+\paragraph{Joint-space impedance control.}
+When a robot must interact with objects or the environment, pure position control risks generating dangerously high forces upon contact.
+Hogan~\cite{Hogan1985} introduced \emph{impedance control}, which regulates the dynamic relationship between motion and contact forces rather than rigidly tracking a trajectory.
+In joint-space impedance control, each joint behaves as a virtual spring-damper system:
 %
 \begin{equation}\label{eq:impedance}
-    \boldsymbol{F} = M_d(\ddot{\boldsymbol{x}}_d - \ddot{\boldsymbol{x}}) + D_d(\dot{\boldsymbol{x}}_d - \dot{\boldsymbol{x}}) + K_d(\boldsymbol{x}_d - \boldsymbol{x})
+    \boldsymbol{\tau} = K_q(\boldsymbol{q}_d - \boldsymbol{q}) + D_q(\dot{\boldsymbol{q}}_d - \dot{\boldsymbol{q}})
 \end{equation}
 %
-where $M_d$, $D_d$, and $K_d$ are the desired inertia, damping, and stiffness, and $\boldsymbol{x}$, $\boldsymbol{x}_d$ are the actual and desired end-effector poses.
-Impedance control is particularly relevant for dexterous manipulation, where fingers must maintain stable contact with objects while accommodating positional uncertainty.
-The \ac{FR3} arm used in this work provides link-side joint torque sensing, enabling Cartesian impedance control without external force-torque sensors.
-
-\paragraph{Model predictive control.}
-\ac{MPC} extends classical control by solving an optimization problem over a receding horizon at each time step~\cite{Camacho2007}.
-Given a dynamics model $\boldsymbol{x}_{t+1} = f(\boldsymbol{x}_t, \boldsymbol{u}_t)$, MPC computes the action sequence $\boldsymbol{u}_{t:t+H}$ that minimizes a cost function $J = \sum_{k=0}^{H} \ell(\boldsymbol{x}_{t+k}, \boldsymbol{u}_{t+k})$ subject to constraints, and executes only the first action before re-planning.
-Nagabandi et al.~\cite{Nagabandi2019} demonstrated that combining learned neural network dynamics models with MPC can enable dexterous manipulation on a 24-\acs{DoF} anthropomorphic hand with only four hours of real-world data.
-While MPC can handle complex dynamics, its reliance on an accurate model and the computational cost of online optimization make it challenging for high-frequency control of multi-fingered hands.
+where $K_q$ and $D_q$ are diagonal stiffness and damping matrices, and $\boldsymbol{q}_d$, $\boldsymbol{q}$ are the desired and actual joint positions~\cite{Siciliano2009}.
+By tuning $K_q$ and $D_q$, the engineer controls how compliantly each joint responds to external forces: low stiffness yields soft, accommodating behavior, while high stiffness approximates rigid position control.
+Joint-space impedance is particularly important for safe deployment of dexterous hands, as it limits contact forces on a per-joint basis, preventing damage to the hand, the object, or the environment during grasping.
+Both the \ac{FR3} arm and the Agile Hand used in this work provide link-side torque sensing on every actuated joint, where the FR3 uses integrated joint torque sensors and the Agile Hand uses strain gauges mounted directly on the joint mechanisms. This enables joint-space impedance control on all 23 \acp{DoF} without external force-torque sensors.
+For real-world deployment, joint-space impedance provides a natural safety layer between the learned policy, which outputs joint position targets, and the physical actuators.
 
 %% =========================================================================
-\section{Grasp Planning and Force Closure}%
+\section{Classical Grasp Planning and Dexterous Manipulation}%
 \label{sec:grasp_planning}%
 
-Grasping is the foundational skill for any manipulation task.
-The classical theory of robotic grasping analyzes grasps through the lens of contact mechanics and force analysis~\cite{Bicchi2000}.
+Before the advent of learning-based methods, dexterous manipulation relied on analytical grasp planning, predefined \emph{manipulation primitives}, which are hand-coded motion sequences for specific subtasks such as ``close fingers to power grasp,'' ``rotate object using thumb opposition,'' or ``slide object along palm,'' and carefully engineered control pipelines.
+This section reviews these classical approaches and their limitations, which motivate the shift to data-driven methods.
 
-\paragraph{Force closure.}
-A grasp is said to achieve \emph{force closure} if the fingers can exert arbitrary wrenches (forces and torques) on the object through the contact points, thereby resisting any external disturbance~\cite{Ferrari1992}.
-Formally, a set of contact points $\{c_1, \ldots, c_k\}$ with associated contact normals achieves force closure if the convex hull of the primitive wrenches spans $\mathbb{R}^6$.
-Ferrari and Canny~\cite{Ferrari1992} proposed quality metrics based on the largest ball inscribed in the \ac{GWS}, which remains a standard measure of grasp quality.
+\paragraph{Analytical grasp planning.}
+The classical theory of robotic grasping frames the problem as finding contact points on an object's surface that satisfy \emph{force closure}, meaning the ability to resist arbitrary external wrenches through the contact forces alone~\cite{Bicchi2000, Ferrari1992}.
+Given a known 3D object model and friction parameters, analytical planners search for contact configurations that optimize a quality metric such as the largest wrench ball inscribable in the \ac{GWS}~\cite{Ferrari1992}.
+These methods work well for simple geometries and known objects, but require accurate object models, known friction coefficients, and precise contact modeling, which are assumptions that rarely hold in unstructured environments.
 
-\paragraph{Analytical vs.\ data-driven approaches.}
-Traditional grasp planning computes contact locations analytically by optimizing force-closure metrics over the object's geometry.
-This requires known 3D object models and accurate contact parameters (friction coefficients, contact areas), which limits applicability to novel objects.
-Data-driven approaches have largely supplanted analytical methods for general-purpose grasping.
-DexGraspNet~\cite{Wang2023} generated 1.32 million grasps for over 5,000 objects using a differentiable force-closure estimator, enabling large-scale training of grasp synthesis networks.
-Wu et al.~\cite{Wu2022} combined a conditional variational autoencoder with bilevel optimization to synthesize diverse, physically feasible grasps on novel objects, achieving 86.7\% success across 20 unseen household objects.
+\paragraph{Traditional manipulation pipelines.}
+Classical dexterous manipulation systems are typically organized as sequential pipelines: (1)~perceive the object (e.g., via 3D scanning or template matching), (2)~plan a grasp using analytical metrics or a precomputed grasp database, (3)~execute the grasp using trajectory planning and impedance control, and (4)~perform post-grasp manipulation via predefined manipulation primitives.
+Each stage is engineered independently, with hand-tuned parameters for the specific robot, gripper, and object set~\cite{Bicchi2000, Siciliano2009}.
+For parallel-jaw grippers, this approach has been highly successful in structured industrial settings.
+However, extending it to multi-fingered hands is substantially harder: for a hand with $n_h$ joints, the grasp planning problem involves searching over $\text{SE}(3) \times \mathbb{R}^{n_h}$, making exhaustive search intractable.
+In practice, classical systems for dexterous hands rely on predefined grasp taxonomies (e.g., power grasp, precision grasp, tripod grasp) with manually specified finger configurations for each object category.
 
-\paragraph{Dexterous vs.\ parallel-jaw grasping.}
-Most industrial grasping systems use parallel-jaw or suction grippers, which constrain the set of achievable grasps.
-Multi-fingered hands offer far richer grasp taxonomies---encompassing precision grasps, power grasps, and in-hand manipulation---but introduce a much higher-dimensional configuration space.
-For a hand with $n_h$ joints, the grasp planning problem involves searching over $\text{SE}(3) \times \mathbb{R}^{n_h}$, making exhaustive search intractable.
-UniDexGrasp++~\cite{Wan2023} addressed this by decomposing the problem into a geometry-aware grasp proposal stage followed by goal-conditioned policy execution, achieving strong generalization across novel objects with a two-stage curriculum.
+\paragraph{Limitations of classical approaches.}
+The fundamental limitation of these methods is their dependence on accurate models: of the object geometry, of the contact physics, and of the robot kinematics and dynamics.
+When any of these models is inaccurate, as is inevitable with novel objects, deformable materials, or wear on the robot hardware, the planned grasps fail.
+Moreover, classical pipelines struggle with the \emph{contact-rich} nature of dexterous manipulation: multi-finger grasping involves complex, discontinuous contact dynamics that are difficult to model analytically and expensive to simulate online~\cite{Bicchi2000}.
+Each stage of the pipeline introduces errors that compound downstream, and the lack of closed-loop feedback between perception and action means the system cannot recover from unexpected perturbations.
+
+\paragraph{The shift to data-driven methods.}
+These limitations have driven a broad shift toward learning-based approaches, which can acquire manipulation skills directly from experience without explicit modeling of contact physics or object geometry~\cite{Tang2024}.
+Data-driven grasp planning was an early success: DexGraspNet~\cite{Wang2023} generated 1.32 million grasps for over 5{,}000 objects using a differentiable force-closure estimator, and Wu et al.~\cite{Wu2022} demonstrated 86.7\% grasp success on novel objects using a learned generative model.
+More recently, end-to-end \ac{RL} has emerged as a particularly promising paradigm for dexterous manipulation, as it can learn both the grasp strategy and the reactive control policy jointly, thereby sidestepping the brittle hand-offs of traditional pipelines.
+UniDexGrasp++~\cite{Wan2023} exemplifies this trend, decomposing the problem into a learned grasp proposal stage followed by goal-conditioned RL execution, achieving generalization across novel objects that would be infeasible with analytical planning.
 
 %% =========================================================================
 \section{Reinforcement Learning}%
@@ -93,7 +97,7 @@ PPO has become the dominant algorithm for robotic \ac{RL} due to its stability a
 It is used throughout the dexterous manipulation literature~\cite{Handa2024, Andrychowicz2020, Petrenko2023} and in this work for training the privileged teacher policy.
 
 \paragraph{Deep RL for robotics.}
-The combination of deep neural networks with RL---\ac{DRL}---has enabled learning of complex behaviors from high-dimensional sensory inputs~\cite{Mnih2015}.
+The combination of deep neural networks with RL, known as \ac{DRL}, has enabled learning of complex behaviors from high-dimensional sensory inputs~\cite{Mnih2015}.
 In robotics, \ac{DRL} has been applied to locomotion, navigation, and manipulation tasks~\cite{Tang2024}.
 However, robotics poses specific challenges: real-world interaction is slow, expensive, and potentially destructive; reward functions are difficult to specify; and the dynamics are often partially observable.
 These challenges have driven the adoption of simulation-based training with subsequent transfer to real hardware.
@@ -102,12 +106,19 @@ These challenges have driven the adoption of simulation-based training with subs
 \section{Sim-to-Real Transfer}%
 \label{sec:sim2real}%
 
-Training RL policies entirely in simulation circumvents the cost and safety issues of real-world learning, but introduces the \emph{sim-to-real gap}---discrepancies between simulated and real physics, perception, and actuation.
+Training RL policies entirely in simulation circumvents the cost and safety issues of real-world learning, but introduces the \emph{sim-to-real gap}, referring to discrepancies between simulated and real physics, perception, and actuation.
 
 \paragraph{Domain randomization.}
 The most widely adopted strategy for bridging the sim-to-real gap is \ac{DR}, which varies simulation parameters (friction, mass, lighting, sensor noise, actuator delays) across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
-The hypothesis is that if the real world falls within the distribution of randomized simulations, the policy will generalize without fine-tuning.
+The hypothesis, illustrated in \cref{fig:domain_randomization}, is that if the real world falls within the distribution of randomized simulations, the policy will generalize without fine-tuning.
 Peng et al.~\cite{Peng2018} demonstrated that randomizing dynamics parameters enables zero-shot sim-to-real transfer for locomotion and manipulation tasks.
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.55\textwidth]{pics/domain_randomization_amplified}
+    \caption{Illustration of domain randomization. A single calibrated simulation (red circle) may not match reality (green triangle), but a sufficiently wide distribution of randomized simulations (dashed ellipses) can encompass the real-world conditions, enabling zero-shot transfer. Figure adapted from~\cite{Tobin2017}.}
+    \label{fig:domain_randomization}
+\end{figure}
 
 \paragraph{Automatic domain randomization.}
 Manual selection of randomization ranges is tedious and error-prone.
@@ -130,10 +141,10 @@ While \ac{RL} can discover optimal behaviors from scratch, it requires extensive
 \paragraph{Policy distillation.}
 The term \emph{policy distillation} refers to the process of transferring the knowledge encoded in one policy (the \emph{teacher}) into another policy (the \emph{student}) via supervised learning.
 Originally introduced in the context of model compression~\cite{Hinton2015}, where a large, expressive network is distilled into a smaller, faster one, the concept has been widely adopted in robotics for a different purpose: bridging the gap between what is available during training and what is available during deployment.
-In simulation-based robot learning, the teacher policy can be trained with access to information that is easy to obtain in simulation---exact object poses, contact forces, full kinematic state---but impossible or impractical to measure on a real robot.
+In simulation-based robot learning, the teacher policy can be trained with access to information that is easy to obtain in simulation, such as exact object poses, contact forces, and full kinematic state, but impossible or impractical to measure on a real robot.
 Policy distillation allows this privileged knowledge to be compressed into a student policy that relies only on deployable sensor modalities such as camera images.
 The distillation itself is an \ac{IL} problem: the student learns to imitate the teacher's actions, using the teacher as an expert demonstrator.
-The key distinction from standard \ac{IL} is that the expert is not a human but a trained policy, which can be queried at arbitrary states and at any scale---enabling interactive distillation methods such as DAgger that would be impractical with a human expert.
+The key distinction from standard \ac{IL} is that the expert is not a human but a trained policy, which can be queried at arbitrary states and at any scale, enabling interactive distillation methods such as DAgger that would be impractical with a human expert.
 
 \paragraph{Behavioral cloning.}
 The simplest form of IL is \ac{BC}, which treats policy learning as supervised regression: given a dataset of state-action pairs $\{(s_i, a_i^*)\}$ collected under an expert policy $\pi^*$, the learner minimizes $\mathbb{E}[\|\pi_\theta(s) - a^*\|^2]$.
@@ -163,7 +174,7 @@ DexSafeDagger is particularly relevant for dexterous hands, where unsafe explora
 
 \paragraph{Privileged teacher-student distillation.}
 A powerful paradigm that combines RL and IL is \emph{privileged teacher-student distillation}~\cite{Levine2016}.
-The idea is to train a teacher policy via RL with access to privileged information---ground-truth object poses, contact forces, full state vectors---that would be unavailable on a real robot.
+The idea is to train a teacher policy via RL with access to privileged information, including ground-truth object poses, contact forces, and full state vectors, that would be unavailable on a real robot.
 This teacher can learn highly effective behaviors because its observation space is compact, low-noise, and fully informative.
 The teacher's behavior is then distilled into a student policy that operates from realistic, deployable sensor inputs (e.g., RGB images).
 This decomposition separates the challenges of learning \emph{what} to do (handled by RL with privileged info) from learning \emph{how} to perceive (handled by distillation from raw sensory data).
@@ -182,11 +193,11 @@ The landmark work by Andrychowicz et al.~\cite{Andrychowicz2020} at OpenAI showe
 
 \paragraph{GPU-accelerated training.}
 The introduction of Isaac Gym~\cite{Makoviychuk2021} enabled thousands of parallel simulation environments on a single GPU, reducing training times from weeks to hours.
-Handa et al.~\cite{Handa2024} leveraged this with DeXtreme, combining vectorized ADR with a vision-based pose estimator to achieve robust in-hand cube reorientation on a real Allegro Hand---using only commodity hardware and no motion capture.
+Handa et al.~\cite{Handa2024} leveraged this with DeXtreme, combining vectorized ADR with a vision-based pose estimator to achieve robust in-hand cube reorientation on a real Allegro Hand using only commodity hardware and no motion capture.
 Petrenko et al.~\cite{Petrenko2023} introduced DexPBT, which applies population-based training to dexterous tasks, automatically discovering reward weights and hyperparameters that yield diverse manipulation skills including bimanual coordination.
 
 \paragraph{Arm-hand grasping.}
-While much early work focused on in-hand manipulation with a fixed wrist, practical applications require coordinated arm-hand control---reaching for objects, grasping them, and transporting them.
+While much early work focused on in-hand manipulation with a fixed wrist, practical applications require coordinated arm-hand control, encompassing reaching for objects, grasping them, and transporting them.
 DextrAH-G~\cite{Lum2024} addressed this with a 23-motor arm-hand system, combining geometric fabrics~\cite{Ratliff2023} with RL to achieve fast, safe dexterous grasping from depth images.
 Geometric fabrics provide a structured control layer that guarantees collision avoidance and smooth motions, while the RL policy operates on top of this layer to learn task-specific behavior.
 DextrAH-RGB~\cite{Singh2025} extended this to RGB-only input, demonstrating the first successful sim-to-real transfer of an end-to-end RGB-based dexterous grasping policy.

@@ -40,7 +40,7 @@ All training and distillation is performed in NVIDIA Isaac Lab~\cite{Mittal2023}
 
 \paragraph{Direct environment API.}
 Isaac Lab provides two paradigms for environment design: a \emph{manager-based} API and a \emph{direct} API (\texttt{DirectRLEnv}).
-This work uses the direct API, which provides full transparency over the simulation loop---observations, rewards, resets, and domain randomization are implemented explicitly in Python rather than delegated to abstracted manager modules.
+This work uses the direct API, which provides full transparency over the simulation loop: observations, rewards, resets, and domain randomization are implemented explicitly in Python rather than delegated to abstracted manager modules.
 This is the same paradigm used in the published DextrAH-RGB implementation~\cite{Singh2025} and enables fine-grained control over reward computation, \ac{ADR} scheduling, and physics parameter manipulation at each time step.
 
 \paragraph{Physics configuration.}
@@ -169,7 +169,7 @@ The critic observation additionally includes object velocities (6D), contact for
 
 The action space is 23-dimensional, consisting of joint position targets for all 7 arm joints and 16 hand joints.
 Actions are scaled from the policy's normalized output $a_t \in [-1, 1]^{23}$ to absolute joint position targets using per-joint scaling factors.
-No geometric fabrics or motion primitives are used---the policy directly commands joint positions, which distinguishes this work from the FGP-based approach in DextrAH-RGB~\cite{Singh2025}.
+No geometric fabrics or motion primitives are used; the policy directly commands joint positions, which distinguishes this work from the FGP-based approach in DextrAH-RGB~\cite{Singh2025}.
 
 \subsection{Reward Design}%
 \label{sec:reward_implementation}%
@@ -297,7 +297,7 @@ The student observation consists of:
     \item \textbf{Proprioceptive state:} Joint positions (23D), joint velocities (23D), hand position (3D), hand velocity (3D), object goal position (3D), and previous action (23D).
     \item \textbf{Visual input:} Simulated stereo RGB images at $320 \times 240$ resolution from wrist-mounted cameras.
 \end{itemize}
-Crucially, the student does \emph{not} receive the object position, orientation, scale, or contact information---these must be inferred from the visual input.
+Crucially, the student does \emph{not} receive the object position, orientation, scale, or contact information; these must instead be inferred from the visual input.
 
 \subsection{Student Network Architecture}%
 \label{sec:student_network}%
@@ -479,7 +479,7 @@ Comparing runs~1a and 1b (same iterations, different teachers), the stronger ADR
 
 \paragraph{Effect of training duration.}
 Extending from 100k to 350k iterations (run~1c) further reduced the imitation loss (1.48 $\to$ 1.40) and the intervention rate (0.875 $\to$ 0.75), indicating continued learning.
-However, the during-training metrics are misleading because they include teacher-assisted actions---the teacher still performs the grasping in 75\% of environments.
+However, the during-training metrics are misleading because they include teacher-assisted actions, as the teacher still performs the grasping in 75\% of environments.
 
 \paragraph{Standalone student evaluation.}
 To measure true student performance without teacher assistance, the run~1c checkpoint was evaluated using \texttt{eval\_student.py} over 80~episodes (16~envs $\times$ 5~rollouts).
@@ -505,7 +505,7 @@ To measure true student performance without teacher assistance, the run~1c check
     \end{tabular}
 \end{table}
 
-The student achieves 36.25\% standalone lift success---a significant gap from the 96.25\% teacher ceiling.
+The student achieves 36.25\% standalone lift success, which represents a significant gap from the 96.25\% teacher ceiling.
 The primary failure mode is \texttt{harmful\_collision} (40.7\% of failures vs.\ 11.6\% for the teacher), indicating the student crashes into the table surface 3.5$\times$ more frequently.
 Object knockoff rates are comparable ($\sim$33\%), suggesting this is an inherent task difficulty rather than a student-specific weakness.
 Arm control is robust for both teacher and student (no \texttt{hand\_too\_far} failures).
@@ -560,7 +560,7 @@ The comparison addresses three specific hypotheses:
 \begin{enumerate}
     \item \textbf{Safety hypothesis:} SafeDAgger produces a student with fewer unsafe episodes (lower \ac{UER}) during both training and standalone evaluation, particularly fewer harmful collisions.
     \item \textbf{Performance hypothesis:} SafeDAgger's intervention mechanism may reduce standalone \ac{GSR} by preventing the student from practicing in challenging states where it needs the most experience.
-    \item \textbf{Efficiency hypothesis:} SafeDAgger requires fewer total teacher queries (lower \ac{TQR}) to reach comparable performance, as it selectively queries only on difficult states---an ``automated curriculum'' effect observed in the original SafeDAgger paper~\cite{Zhang2016}.
+    \item \textbf{Efficiency hypothesis:} SafeDAgger requires fewer total teacher queries (lower \ac{TQR}) to reach comparable performance, as it selectively queries only on difficult states, creating an ``automated curriculum'' effect observed in the original SafeDAgger paper~\cite{Zhang2016}.
 \end{enumerate}
 
 % PLACEHOLDER: Fill in DAgger column of the table and add the following analysis once run2a completes:
@@ -680,7 +680,7 @@ The extreme case $\delta \to \infty$ recovers vanilla DAgger (no intervention).
 \end{table}
 
 This ablation reveals the safety--performance Pareto frontier for the dexterous grasping domain.
-If low-$\delta$ runs show lower \ac{UER} but also lower \ac{GSR}, the threshold acts as an explicit knob for trading safety against task performance---a critical design parameter for eventual real-world deployment where hardware damage is costly.
+If low-$\delta$ runs show lower \ac{UER} but also lower \ac{GSR}, the threshold acts as an explicit knob for trading safety against task performance, which is a critical design parameter for eventual real-world deployment where hardware damage is costly.
 Conversely, if an intermediate $\delta$ simultaneously improves both metrics, it would confirm the ``automated curriculum'' hypothesis from Zhang and Cho: that focusing training on difficult states accelerates learning without sacrificing safety.
 
 % PLACEHOLDER: Add Pareto curve figure (x-axis: TQR or UER, y-axis: GSR) showing each threshold as a point.
@@ -694,7 +694,7 @@ Conversely, if an intermediate $\delta$ simultaneously improves both metrics, it
 \subsection{Per-Object Performance Breakdown}%
 \label{sec:ablation_per_object}%
 
-The 13 VisDex training objects span a wide range of geometries---from compact, graspable shapes (basketball shoe, teddy bear) to thin or irregular objects (plane, toy bagger).
+The 13 VisDex training objects span a wide range of geometries, from compact, graspable shapes such as the basketball shoe and teddy bear, to thin or irregular objects such as the plane and toy bagger.
 To identify which object categories benefit most from SafeDAgger's intervention mechanism, both the teacher and student policies are evaluated per-object over 80~episodes each (16~envs $\times$ 5~rollouts, with each environment assigned a single object).
 
 % PLACEHOLDER: Run per-object evaluations for teacher, SafeDAgger student, and DAgger student. Fill in the table below.
@@ -728,7 +728,7 @@ To identify which object categories benefit most from SafeDAgger's intervention 
 
 The per-object breakdown serves two purposes.
 First, it identifies which object geometries pose the greatest challenge for the vision-based student, informing whether the teacher--student gap is uniform or concentrated on specific shapes.
-Second, it reveals whether SafeDAgger's intervention is more beneficial for certain object categories---for example, thin or irregular objects where collisions are more likely and teacher shielding may be more valuable.
+Second, it reveals whether SafeDAgger's intervention is more beneficial for certain object categories, for example thin or irregular objects where collisions are more likely and teacher shielding may be more valuable.
 
 % PLACEHOLDER: Add bar chart comparing per-object GSR for teacher, SafeDAgger, and DAgger.
 % \begin{figure}[htb]
@@ -775,7 +775,7 @@ Each checkpoint is evaluated standalone (without teacher intervention) over 80~e
 %     \label{fig:learning_curves}
 % \end{figure}
 
-The learning curves address whether SafeDAgger's curriculum effect---focusing training on difficult states---leads to faster initial convergence or whether DAgger's unrestricted exploration enables the student to eventually surpass SafeDAgger given sufficient iterations.
+The learning curves address whether SafeDAgger's curriculum effect, which focuses training on difficult states, leads to faster initial convergence or whether DAgger's unrestricted exploration enables the student to eventually surpass SafeDAgger given sufficient iterations.
 The \ac{UER} curves additionally reveal whether SafeDAgger students exhibit fewer unsafe behaviors throughout training, not just at the final checkpoint.
 
 \subsection{Effect of Distillation Duration}%
