@@ -20,6 +20,7 @@
 \usepackage{algorithm}%
 \usepackage{algpseudocode}%
 \usepackage{booktabs}%
+\usepackage{subcaption}%
 \usepackage[printonlyused]{acronym}% Abbreviation list
 %
 % Set paths
@@ -32,7 +33,15 @@
 \newcommand{\degree}[0]{^\circ}%
 \definecolor{safedaggerhl}{RGB}{0,100,180}% Highlight color for SafeDAgger-specific lines
 \newcommand{\hlsafe}[1]{\textcolor{safedaggerhl}{#1}}% Shorthand for highlighting
-%\left( \right) 
+%\left( \right)
+%
+% Add Agile Robots logo underneath TUM logo on title page
+\let\origAIRstudentthesisTitlePageFrontPage\AIRstudentthesisTitlePageFrontPage
+\renewcommand{\AIRstudentthesisTitlePageFrontPage}[8]{%
+    \origAIRstudentthesisTitlePageFrontPage{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}%
+    \AIRlayoutPutAtNorthEast{2cm}{2.8cm}{\includegraphics[width=1.9cm]{Agile_Robots_logo}}%
+}%
+%
 \begin{document}%
 % Titlepage
 % ---------
@@ -112,6 +121,14 @@
     %\sloppy% "Word"-like typesetting in order to improve breaking lines with long URLs/DOIs
     \printbibliography[heading=bibintoc]%
 }%
+%
+% Acknowledgments
+% ---------------
+\chapter*{Acknowledgments}%
+\addcontentsline{toc}{chapter}{Acknowledgments}%
+This thesis was conducted in collaboration with Agile Robots SE, Munich.
+The author was employed at Agile Robots SE during the course of this work, and the research was carried out using computational and hardware resources provided by Agile Robots SE, including the Agile Hand dexterous manipulator and GPU infrastructure for reinforcement learning training.
+The author gratefully acknowledges Agile Robots SE for their support, in particular Antonio Gonzales Marin, M.Sc., for his supervision on the industry side.
 %
 %
 \end{document}%

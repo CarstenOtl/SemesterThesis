@@ -23,15 +23,35 @@ The factory torque limits are 87\,Nm for joints~1--4 and 12\,Nm for joints~5--7.
 \paragraph{Agile Hand.}
 The Agile Hand, manufactured by Agile Robots SE, is a 16-\acs{DoF} anthropomorphic robotic hand composed of five identical, modularly designed fingers with an aluminum open skeleton structure and injection-molded plastic shells.
 The hand weighs 1.5\,kg and has 21~joints total, of which 16 are independently actuated (one coupled joint per finger).
-Each finger has four joints: a metacarpophalangeal (MCP) pitch joint ($0\degree$ to $75\degree$), an MCP yaw joint ($\pm 15\degree$), a proximal interphalangeal (PIP) joint ($0\degree$ to $85\degree$), and a distal interphalangeal (DIP) joint ($0\degree$ to $90\degree$, coupled to PIP).
+Each finger has four joints: a metacarpophalangeal (MCP) pitch joint ($0\degree$ to $75\degree$), an MCP yaw joint ($\pm 15\degree$), a proximal interphalangeal (PIP) joint ($0\degree$ to $85\degree$), and a distal interphalangeal (DIP) joint ($0\degree$ to $85\degree$, coupled to PIP).
 The opposing thumb adds a rotation \acs{DoF} with a range of $60\degree$.
 The hand provides 10\,N active fingertip force, $360\degree$/s finger joint velocity, and EtherCAT-based real-time communication at 1\,kHz.
 The thumb rotation joint operates at a significantly lower velocity ($\approx$12\,deg/s), which is a key constraint for sim-to-real transfer (see \cref{sec:sim2real_curriculum}).
 Joint torque and position sensors are integrated in every actuated joint, enabling active compliant control.
 The combined arm--hand system provides 23 actuated \acp{DoF}: 7~arm joints plus 16~hand joints.
+\cref{fig:hardware_platform} shows the physical Agile Hand and the assembled system as rendered in Isaac Sim.
 
 \paragraph{Sensor setup.}
 % PLACEHOLDER: Describe Intel RealSense D405 — resolution, depth range, mounting position (wrist-mounted or external), frame rate. In simulation, stereo RGB rendering is used via Isaac Lab's TiledCamera at 320x240 resolution.
+
+\begin{figure}[htb]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{setup/Agile_Hand_photo}
+        \caption{The physical Agile Hand.}
+        \label{fig:agile_hand_photo}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{setup/Setup_isaacsim}
+        \caption{FR3 + Agile Hand in Isaac Sim.}
+        \label{fig:setup_isaacsim}
+    \end{subfigure}
+    \caption{Hardware platform: (a)~the 16-\acs{DoF} Agile Hand manufactured by Agile Robots SE, and (b)~the combined FR3 arm--hand system as rendered in the Isaac Sim simulation environment.}
+    \label{fig:hardware_platform}
+\end{figure}
 
 \subsection{Simulation Environment}%
 \label{sec:sim_env}%
