@@ -4,6 +4,7 @@
 
 This chapter describes the experimental realization of the methods introduced in \cref{ch:methods}.
 It begins with the hardware and simulation setup (\cref{sec:experimental_setup}), details the teacher and student policy implementations (\cref{sec:teacher_implementation,sec:student_implementation}), defines the evaluation protocol (\cref{sec:eval_protocol}), and presents results for both teacher training (\cref{sec:teacher_results}) and distillation (\cref{sec:distillation_results}).
+\cref{fig:teacher_training} illustrates the teacher training pipeline.
 
 %% =========================================================================
 \section{Experimental Setup}%
@@ -150,6 +151,13 @@ Early terminations incur a penalty of $-1.0$ on the reward to discourage the pol
 %% =========================================================================
 \section{Teacher Policy Implementation}%
 \label{sec:teacher_implementation}%
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=\textwidth]{pics/Teacher Training}
+    \caption{Teacher training pipeline. A privileged teacher policy is trained using PPO with an asymmetric actor-critic architecture. The critic receives full privileged state information, while the actor observes only noisy proprioceptive observations processed through an LSTM-based recurrent network. The policy outputs joint position targets at 60\,Hz, which are tracked by PD controllers running at the simulation frequency of 120\,Hz.}
+    \label{fig:teacher_training}
+\end{figure}
 
 \subsection{Observation Space}%
 \label{sec:obs_space}%
@@ -307,6 +315,13 @@ This simplifies the curriculum but does not allow per-parameter scheduling.
 %% =========================================================================
 \section{Student Policy Implementation}%
 \label{sec:student_implementation}%
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=\textwidth]{pics/Student Training_pipeline}
+    \caption{Student distillation pipeline using Online SafeDAgger. The frozen teacher policy provides expert actions $\boldsymbol{a}_T$ from noisy state observations, while the student policy produces actions $\boldsymbol{a}_S$ from stereo RGB images and proprioception. A learned safety policy $D_\psi$ evaluates the L2 action disagreement between teacher and student to determine whether the student may act autonomously or the teacher must intervene, controlled by a safety threshold~$\delta$.}
+    \label{fig:student_training}
+\end{figure}
 
 \subsection{Student Observation Space}%
 \label{sec:student_obs}%

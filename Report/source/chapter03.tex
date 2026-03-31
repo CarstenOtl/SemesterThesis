@@ -250,7 +250,7 @@ The complete SafeDAgger procedure is given in \cref{alg:safedagger}.
 \subsubsection{DexSafeDagger: Q-Value Risk Prediction}%
 \label{sec:dexsafedagger_method}%
 
-Zhang~\cite{ChiZhang2026} proposed an extension of SafeDAgger for dexterous manipulation that replaces the action-disagreement classifier with a \emph{Q-value-based risk predictor}.
+Zhang~\cite{ChiZhang2026} proposed an extension of SafeDAgger for dexterous manipulation that replaces the binary safety classifier with a \emph{learned Q-value-based risk predictor}.
 This work, referred to as DexSafeDagger, has been submitted for publication but has not yet undergone peer review.
 Rather than relying solely on the L2 distance between student and teacher actions, DexSafeDagger uses the teacher's learned value function $V_\phi$ to estimate the risk of the current state.
 

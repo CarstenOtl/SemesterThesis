@@ -22,6 +22,7 @@
 \usepackage{booktabs}%
 \usepackage{subcaption}%
 \usepackage[printonlyused]{acronym}% Abbreviation list
+\usetikzlibrary{positioning, fit, backgrounds, shapes.geometric}% For pipeline diagram
 %
 % Set paths
 \graphicspath{{figures/}}%
@@ -54,6 +55,15 @@
 
 %\AIRstudentthesisTitlePageCustomIDP{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 %\AIRstudentthesisTitlePageCustomMastersThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Zhang Chi, M.Sc.}{\AIRutilsDate{15}{04}{2026}}%
+%
+% Acknowledgments
+% ---------------
+\chapter*{Acknowledgments}%
+\addcontentsline{toc}{chapter}{Acknowledgments}%
+This thesis was conducted in collaboration with Agile Robots SE, Munich.
+The author was employed at Agile Robots SE during the course of this work, and the research was carried out using computational and hardware resources provided by Agile Robots SE, including the Agile Hand dexterous manipulator and GPU infrastructure for reinforcement learning training.
+The author gratefully acknowledges Agile Robots SE for their support, in particular Antonio Gonzales Marin, M.Sc., for his supervision on the industry side.
+\cleardoublepage%
 %
 % Abstract
 % --------
@@ -121,14 +131,6 @@
     %\sloppy% "Word"-like typesetting in order to improve breaking lines with long URLs/DOIs
     \printbibliography[heading=bibintoc]%
 }%
-%
-% Acknowledgments
-% ---------------
-\chapter*{Acknowledgments}%
-\addcontentsline{toc}{chapter}{Acknowledgments}%
-This thesis was conducted in collaboration with Agile Robots SE, Munich.
-The author was employed at Agile Robots SE during the course of this work, and the research was carried out using computational and hardware resources provided by Agile Robots SE, including the Agile Hand dexterous manipulator and GPU infrastructure for reinforcement learning training.
-The author gratefully acknowledges Agile Robots SE for their support, in particular Antonio Gonzales Marin, M.Sc., for his supervision on the industry side.
 %
 %
 \end{document}%

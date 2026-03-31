@@ -124,7 +124,6 @@ Peng et al.~\cite{Peng2018} demonstrated that randomizing dynamics parameters en
 Manual selection of randomization ranges is tedious and error-prone.
 \ac{ADR} automates this process by gradually widening parameter ranges based on policy performance~\cite{OpenAI2020}.
 The method maintains lower and upper bounds for each randomization dimension and adjusts them using performance thresholds, creating a natural curriculum from easy to difficult conditions.
-Handa et al.~\cite{Handa2024} extended ADR to vectorized GPU-based environments (VADR), enabling efficient scaling to thousands of parallel simulation instances.
 
 \paragraph{System identification.}
 An alternative to domain randomization is \emph{system identification}, which fits simulation parameters to match real-world behavior.
@@ -166,14 +165,14 @@ During data collection, the system switches from the student to the expert whene
 This mechanism reduces unnecessary expert queries and prevents the student from executing actions in states where it is likely to fail, creating an implicit curriculum from safe to progressively more challenging states.
 
 \paragraph{DexSafeDagger.}
-Zhang~\cite{ChiZhang2026} proposed DexSafeDagger, an extension of SafeDAgger for dexterous manipulation that introduces a \emph{Q-value-based risk predictor}.
+Zhang~\cite{ChiZhang2026} proposed DexSafeDagger, an extension of SafeDAgger for dexterous manipulation that replaces the binary safety classifier with a \emph{learned Q-value-based risk predictor}.
 This work has been submitted for publication but has not yet undergone peer review.
 Rather than relying solely on action disagreement between teacher and student, DexSafeDagger uses a learned Q-value function from the teacher's RL training to estimate the risk of each state.
 The teacher intervenes when either the action disagreement exceeds a threshold or the Q-value indicates a high-risk state.
 DexSafeDagger is particularly relevant for dexterous hands, where unsafe exploration can cause hardware damage or lead to irrecoverable failure states such as dropping the object.
 
 \paragraph{Privileged teacher-student distillation.}
-A powerful paradigm that combines RL and IL is \emph{privileged teacher-student distillation}~\cite{Levine2016}.
+A powerful paradigm that combines RL and IL is \emph{privileged teacher-student distillation}~\cite{Hinton2015, Lum2024, Singh2025}.
 The idea is to train a teacher policy via RL with access to privileged information, including ground-truth object poses, contact forces, and full state vectors, that would be unavailable on a real robot.
 This teacher can learn highly effective behaviors because its observation space is compact, low-noise, and fully informative.
 The teacher's behavior is then distilled into a student policy that operates from realistic, deployable sensor inputs (e.g., RGB images).
