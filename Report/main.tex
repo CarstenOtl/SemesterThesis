@@ -21,6 +21,8 @@
 \usepackage{algpseudocode}%
 \usepackage{booktabs}%
 \usepackage{subcaption}%
+\usepackage{float}%              Provides [H] placement to keep figures in place
+\usepackage[section]{placeins}%  Prevent floats from drifting past section boundaries
 \usepackage[printonlyused]{acronym}% Abbreviation list
 \usetikzlibrary{positioning, fit, backgrounds, shapes.geometric}% For pipeline diagram
 %
@@ -102,7 +104,6 @@ The author gratefully acknowledges Agile Robots SE for their support, in particu
     \acro{GWS}{Grasp Wrench Space}
     \acro{GSR}{Grasp Success Rate}
     \acro{UER}{Unsafe Episode Rate}
-    \acro{TQR}{Teacher Query Rate}
     \acro{RGB-D}{Red Green Blue -- Depth}
     \acro{CNN}{Convolutional Neural Network}
     \acro{MLP}{Multilayer Perceptron}
