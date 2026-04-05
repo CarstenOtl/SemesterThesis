@@ -555,14 +555,15 @@ The final scaling to 512~environments (run~1p) resolved gradient instability and
         Number of environments & 512 & 1{,}024 & 1{,}024 \\
         Sim2real curriculum & No & No & Yes \\
         \acs{GSR} (\%) & -- & 96.25 & 85.83 \\
-        \acs{UER} (\%) & -- & 53.75 & 23.13 \\
+        \acs{UER} (excl.\ physics) (\%) & -- & 23.75 & 12.10 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Teacher~10 (ADR-19) achieves the highest \ac{GSR} (96.25\%) but also the highest \ac{UER} (53.75\%), dominated by \texttt{physics\_instability} (55.8\% of failures), which are simulation-only artifacts that cannot occur on real hardware.
+Teacher~10 (ADR-19) achieves the highest \ac{GSR} (96.25\%) but also the highest \ac{UER} (53.75\%), of which 30.0\% are \texttt{physics\_instability} (simulation-only artifacts that cannot occur on real hardware).
+Its real \ac{UER} (excluding physics instability) is 23.75\%.
 Teacher~11 (sim2real, ADR-14) was trained from scratch with hardware-realistic effort and velocity limits (see \cref{sec:sim2real_curriculum}).
-It achieves a lower \ac{GSR} (85.83\%) due to the more constrained actuators, but a substantially lower \ac{UER} (23.13\%), as illustrated in \cref{fig:teacher_comparison}, indicating that the sim2real curriculum produces inherently safer grasping behavior.
+It achieves a lower \ac{GSR} (85.83\%) due to the more constrained actuators, but a real \ac{UER} of only 12.10\%, as illustrated in \cref{fig:teacher_comparison}, indicating that the sim2real curriculum produces inherently safer grasping behavior.
 As shown in the distillation results (\cref{sec:distillation_results}), teacher~11 produces better students than teacher~10 despite its lower raw \ac{GSR}, because its demonstrations are cleaner and contain fewer simulation artifacts.
 
 \begin{figure}[htb]
@@ -586,27 +587,28 @@ Fixing this bug in run~9 produced the best results.
 
 \begin{table}[htb]
     \centering
-    \caption{Summary of standalone student evaluations (480 episodes each). All runs use teacher~11 and L2 loss unless noted. Real \acs{UER} excludes physics instability.}
+    \caption{Summary of standalone student evaluations (480 episodes each). All runs use teacher~11 and L2 loss unless noted. \acs{UER} excludes physics instability (simulation-only artifacts).}
     \label{tab:distillation_summary}
-    \begin{tabular}{llcccccc}
+    \begin{tabular}{llccccc}
         \toprule
-        \textbf{Run} & \textbf{Method} & \textbf{$\delta$} & \textbf{Objects} & \textbf{Iters} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} & \textbf{Real \acs{UER} (\%)} \\
+        \textbf{Run} & \textbf{Method} & \textbf{$\delta$} & \textbf{Objects} & \textbf{Iters} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} \\
         \midrule
-        1c & SafeDAgger & 0.5 & 13 & 350k & 36.3 & 67.5 & -- \\
-        2a & DAgger (KL) & -- & 13 & 350k & 50.0 & 75.0 & -- \\
-        3a & SafeDAgger & 0.5 & 13 & 120k & 59.0 & 72.7 & -- \\
-        3b & DAgger (KL) & -- & 13 & 105k & 57.7 & 70.6 & -- \\
+        1c & SafeDAgger & 0.5 & 13 & 350k & 36.3 & --$^*$ \\
+        2a & DAgger (KL) & -- & 13 & 350k & 50.0 & 31.7 \\
+        3a & SafeDAgger & 0.5 & 13 & 120k & 59.0 & 10.2 \\
+        3b & DAgger (KL) & -- & 13 & 105k & 57.7 & 5.4 \\
         \midrule
-        5a & SafeDAgger & 0.5 & 13 & 100k & 61.3 & 75.4 & -- \\
-        7a & SafeDAgger & 3.0 & 8 & 100k & 27.9 & 79.0 & -- \\
-        8a & SafeDAgger & 2.0 & 8 & 100k & 41.7 & 70.0 & -- \\
-        8b & DAgger     & --  & 8 & 100k & 55.2 & 42.3 & -- \\
+        5a & SafeDAgger & 0.5 & 13 & 100k & 61.3 & 34.8 \\
+        7a & SafeDAgger & 3.0 & 8 & 100k & 27.9 & 26.9 \\
+        8a & SafeDAgger & 2.0 & 8 & 100k & 41.7 & 25.9 \\
+        8b & DAgger     & --  & 8 & 100k & 55.2 & 21.5 \\
         \midrule
-        \multicolumn{8}{c}{\emph{One-hot index bug fixed}} \\
+        \multicolumn{7}{c}{\emph{One-hot index bug fixed}} \\
         \midrule
-        \textbf{9a} & \textbf{SafeDAgger} & \textbf{2.0} & \textbf{8} & \textbf{100k} & \textbf{72.7} & \textbf{62.7} & \textbf{30.2} \\
-        \textbf{9b} & \textbf{DAgger}     & \textbf{--}  & \textbf{8} & \textbf{100k} & \textbf{71.7} & \textbf{58.3} & \textbf{32.7} \\
+        \textbf{9a} & \textbf{SafeDAgger} & \textbf{2.0} & \textbf{8} & \textbf{100k} & \textbf{72.7} & \textbf{30.2} \\
+        \textbf{9b} & \textbf{DAgger}     & \textbf{--}  & \textbf{8} & \textbf{100k} & \textbf{71.7} & \textbf{32.7} \\
         \bottomrule
+        \multicolumn{7}{l}{\footnotesize $^*$Physics instability not separated in early 80-episode evaluation.}
     \end{tabular}
 \end{table}
 
@@ -620,17 +622,15 @@ The most controlled comparison is run~9, which uses teacher~11 with identical hy
 
 \begin{table}[htb]
     \centering
-    \caption{DAgger vs.\ SafeDAgger with teacher~11 (sim2real, ADR-14), run~9, 24 envs, 480 standalone evaluation episodes.}
+    \caption{DAgger vs.\ SafeDAgger with teacher~11 (sim2real, ADR-14), run~9, 24 envs, 480 standalone evaluation episodes. \acs{UER} and failure rates exclude physics instability.}
     \label{tab:dagger_comparison}
     \begin{tabular}{lccc}
         \toprule
         \textbf{Metric} & \textbf{DAgger (L2)} & \textbf{SafeDAgger (L2)} & \textbf{Teacher~11} \\
         \midrule
         Final \acs{GSR} (\%) & 71.7 & 72.7 & 85.8 \\
-        \acs{UER} (\%) & 58.3 & 62.7 & 23.1 \\
-        Real \acs{UER} (\%) & 32.7 & 30.2 & 12.1 \\
+        \acs{UER} (\%) & 32.7 & 30.2 & 12.1 \\
         Harmful collision (\%) & 12.5 & 16.2 & 1.7 \\
-        Physics instability (\%) & 25.6 & 32.5 & 11.0 \\
         Object out of bound (\%) & 19.2 & 11.5 & 9.4 \\
         Palm flipped (\%) & 1.1 & 2.5 & 0.6 \\
         \bottomrule
@@ -829,10 +829,10 @@ Runs~7a and 8a used 8 objects but had the one-hot index bug, so their absolute p
         \toprule
         $\delta$ & \textbf{Run} & \textbf{Objects} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} & \textbf{Note} \\
         \midrule
-        0.5   & 5a & 13 & 61.3 & 75.4 & Conservative \\
-        2.0   & 9a & 8  & 72.7 & 62.7 & One-hot fixed \\
-        3.0   & 7a & 8  & 27.9 & 79.0 & One-hot bug \\
-        $\infty$ & 9b & 8 & 71.7 & 58.3 & DAgger baseline \\
+        0.5   & 5a & 13 & 61.3 & 34.8 & Conservative \\
+        2.0   & 9a & 8  & 72.7 & 30.2 & One-hot fixed \\
+        3.0   & 7a & 8  & 27.9 & 26.9 & One-hot bug \\
+        $\infty$ & 9b & 8 & 71.7 & 32.7 & DAgger baseline \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -845,23 +845,18 @@ At $\delta = 2.0$, the intervention rate decays rapidly (\cref{fig:intervention_
 \label{sec:ablation_query_efficiency}%
 
 A central claim of SafeDAgger is \emph{query efficiency}: by selectively querying the teacher only on states where the student struggles, SafeDAgger should achieve comparable performance with fewer total teacher queries than vanilla DAgger~\cite{Zhang2016}.
-In the original driving domain, SafeDAgger collected 70k targeted examples compared to DAgger's 390k uniformly sampled examples per iteration.
+In the original TORCS driving domain, Zhang and Cho reported that SafeDAgger collected approximately 70k targeted examples compared to DAgger's 390k uniformly sampled examples per iteration, achieving a $5.6\times$ reduction in teacher queries while maintaining comparable driving performance~\cite{Zhang2016}.
 
-In the dexterous grasping setting, query efficiency is measured by the cumulative number of teacher-executed time steps over the course of distillation.
+In the dexterous grasping setting, query efficiency can be measured by the cumulative number of teacher-executed time steps over the course of distillation.
 For DAgger, this equals the total number of time steps (the teacher always provides labels, though the student always acts).
-For SafeDAgger, this equals $\beta_{\text{safe}} \times \text{total steps}$, since the teacher only acts in environments where $\|e_t\|_2 > \delta$.
+For SafeDAgger, this equals $\sum_t \beta_{\text{safe}}(t) \times N_{\text{envs}}$, since the teacher only acts in environments where $\|e_t\|_2 > \delta$.
+The per-iteration intervention rate $\beta_{\text{safe}}$ is logged to TensorBoard during training (\cref{fig:intervention_rate}), but cumulative teacher queries were not tracked explicitly.
 
-% PLACEHOLDER: Compute and plot the following once DAgger baseline completes:
-% - Cumulative teacher queries vs. distillation iteration for both methods
-% - GSR vs. cumulative teacher queries (query efficiency curve)
-% The key question: does SafeDAgger reach a given GSR with fewer teacher queries?
-
-% \begin{figure}[htb]
-%     \centering
-%     \includegraphics[width=0.85\textwidth]{query_efficiency}
-%     \caption{Query efficiency comparison. Left: cumulative teacher queries over distillation iterations. Right: standalone \ac{GSR} vs.\ cumulative teacher queries. SafeDAgger's selective querying is expected to achieve higher GSR per teacher query.}
-%     \label{fig:query_efficiency}
-% \end{figure}
+% TODO: Compute cumulative teacher queries from the TensorBoard beta logs for run 9a.
+% With beta decaying from ~0.7 to ~0.1 over 100k iterations and 24 envs,
+% the total teacher steps should be substantially lower than DAgger's
+% 100k × 24 = 2.4M total steps. Extract beta curve, integrate, and compare.
+\textbf{TODO:} Compute cumulative teacher queries from the logged $\beta_{\text{safe}}$ curves for run~9a and compare against DAgger's $100\text{k} \times 24 = 2.4\text{M}$ total teacher steps.
 
 \subsection{Learning Curve Comparison}%
 \label{sec:ablation_learning_curves}%
