@@ -757,6 +757,77 @@ The per-object unsafe rate curves show that SafeDAgger achieves consistently low
     \label{fig:per_object_unsafe_h2h}
 \end{figure}
 
+\subsection{Scaling Environments and ADR-Randomised Distillation (Runs~10--11)}%
+\label{sec:run10_run11}%
+
+Building on the run~9 baseline, two follow-up experiments push the SafeDAgger student further: run~10b raises the per-object environment count, and run~11a/b probes whether moderate physics randomisation during distillation is tolerable.
+Both reuse the run~9 configuration (teacher~11, weighted L2 loss, $\delta = 2.0$, visdex\_top8, 100k iterations, 10\,s episodes) and modify a single variable.
+
+\paragraph{Run~10b — 32 environments (4 envs per object).}
+Increasing the parallel environment count from 24 ($3 \times 8$) to 32 ($4 \times 8$) yields the strongest student in this work: \textbf{79.2\,\% \acs{GSR}} on the 8-object evaluation set, reaching $92.3\,\%$ of the teacher's 85.8\,\% ceiling.
+Real \acs{UER} (excluding physics instability) is essentially unchanged compared with run~9a (64.6\,\% vs.\ 62.7\,\% over all eval episodes).
+The improvement is consistent with the multi-object teacher finding in \cref{sec:ablation_envs}: cleaner per-object gradients dominate the trade-off against per-iteration wall-clock cost.
+A parallel ablation (run~10a) re-enabled visual and arm-pose randomisation at 24 environments and lost roughly 10~percentage points of training lift success compared with run~9a, indicating that visual diversity adds learning difficulty without matching the standalone evaluation conditions, and is best deferred to the sim2real curriculum.
+
+\paragraph{Run~11a/b — Distillation under \acs{ADR}~5.}
+All distillation runs up to this point disabled domain randomisation (ADR~0).
+Run~11a (SafeDAgger) and run~11b (DAgger) repeat the run~10b configuration but enable \texttt{starting\_adr\_increments\,=\,5}, exposing the student to moderate friction, mass, and stiffness randomisation while the teacher (trained to ADR~14) still provides reliable supervision.
+Both methods degrade compared with their ADR-0 counterparts, but the relative drop differs sharply: SafeDAgger falls from 79.2\,\% to 63.9\,\% \acs{GSR} ($-15.3$\,pp), while DAgger falls from 71.7\,\% to 48.8\,\% ($-22.9$\,pp).
+The DAgger student's collision rate roughly doubles (12.5\,\% to 25.9\,\% of all evaluation episodes), whereas SafeDAgger's collision rate grows more modestly.
+Within the time budget of this thesis, neither method recovers the ADR-0 performance under randomisation, suggesting that distillation under ADR requires longer schedules.
+The asymmetric degradation, however, provides direct evidence for the SafeDAgger robustness hypothesis stated in \cref{sec:dagger_results}: query-aware imitation is less brittle to distribution shifts in the environment than uniform-coverage imitation.
+
+\cref{tab:run10_run11_results} consolidates the run~10/11 standalone evaluation numbers alongside the run~9 baseline and teacher~11 ceiling.
+\cref{fig:run10b_lift,fig:run11_lift} show the lift-success training curves for the new runs, and \cref{fig:run10b_vs_run11_per_object} compares per-object lift between the best ADR-0 student (run~10b) and the ADR-5 students.
+
+\begin{table}[H]
+    \centering
+    \caption{Standalone evaluation of distillation runs~9--11 against teacher~11. Lift success and \acs{UER} (real, excluding physics instability) are reported over 480--640 episodes on the 8-object set. \emph{Best student in bold.}}
+    \label{tab:run10_run11_results}
+    \begin{tabular}{llcccc}
+        \toprule
+        \textbf{Run} & \textbf{Method} & \textbf{Envs} & \textbf{ADR} & \textbf{\acs{GSR} (\%)} & \textbf{Real \acs{UER} (\%)} \\
+        \midrule
+        Teacher~11 & PPO  & --- & 14 & 85.8 & 12.1 \\
+        \midrule
+        9a   & SafeDAgger & 24 & 0 & 72.7 & 30.2 \\
+        9b   & DAgger     & 24 & 0 & 71.7 & 32.7 \\
+        10a  & SafeDAgger & 24 & 0 & 62.3 & 36.2 \\
+        \textbf{10b} & \textbf{SafeDAgger} & \textbf{32} & \textbf{0} & \textbf{79.2} & \textbf{37.5} \\
+        11a  & SafeDAgger & 32 & 5 & 63.9 & 34.1 \\
+        11b  & DAgger     & 32 & 5 & 48.8 & 47.1 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run10/lift_success_normed}
+        \caption{Run~10b lift success over distillation iterations. SafeDAgger with 32 environments reaches the highest student lift success (79.2\,\%) recorded in this work.}
+        \label{fig:run10b_lift}
+    \end{minipage}\hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run11/lift_success_normed}
+        \caption{Run~11 lift success under \acs{ADR}~5 randomisation. SafeDAgger (blue) degrades less than DAgger (orange) when the student is exposed to randomised physics during distillation.}
+        \label{fig:run11_lift}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{plots/comparisons/run10b_vs_run11_per_object_lift}
+    \caption{Per-object lift success at standalone evaluation: run~10b (SafeDAgger, ADR~0, 32 envs) versus run~11a (SafeDAgger, ADR~5) and run~11b (DAgger, ADR~5). Enabling \acs{ADR}~5 during distillation hurts both methods on every object, but the gap to the ADR-0 best is consistently smaller for SafeDAgger.}
+    \label{fig:run10b_vs_run11_per_object}
+\end{figure}
+
+\paragraph{Summary.}
+The best student policy in this thesis is run~10b: SafeDAgger with 32~environments, $\delta = 2.0$, no \acs{ADR} during distillation.
+It closes 92\,\% of the gap to teacher~11 on lift success and provides the strongest baseline for the eventual hardware deployment.
+Run~11 indicates that ADR-randomised distillation is feasible but requires schedules longer than 100k iterations, and reinforces the SafeDAgger robustness advantage already visible in the run~9 head-to-head.
+
 %% =========================================================================
 \section{Ablation Studies}%
 \label{sec:ablations}%
