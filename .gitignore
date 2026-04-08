@@ -36,3 +36,6 @@ Thumbs.db
 
 # Keep PDFs (do NOT ignore them)
 !*.pdf
+
+# Standalone cover document output (broken against current AIRlatex.cls)
+Report/cover.pdf

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:danieltakeshi.github.io)",
+      "WebFetch(domain:arxiv.org)"
+    ]
+  }
+}
