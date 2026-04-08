@@ -4,6 +4,20 @@ Tracks recent changes to the thesis report. Newest entries on top.
 
 ## 2026-04-08
 
+### Chapter 4 — Experiments and Results (restructure per supervisor outline)
+
+- Reorganized into the supervisor's three-section layout:
+  - **4.1 Experimental Setup** — now wraps three subsections:
+    - **4.1.1 Teacher Policy Training** (new): Simulation Environment, Hardware Platform, Object Set, Episode Structure, Observation/Action Space, Reward Design, Network Architecture, Training Configuration, ADR, **Sim-to-Real Curriculum** (moved here from old §4.8 design portion).
+    - **4.1.2 Student Policy Distillation** (was §Student Policy Implementation).
+    - **4.1.3 Evaluation Metrics** (was §Evaluation Protocol; "Metrics" → "Definition").
+  - **4.2 Ablation Studies** — moved to come **before** results, per supervisor.
+  - **4.3 Results, Graphs and Tables** (new wrapper) — contains 4.3.1 Teacher Training Results and 4.3.2 Distillation Results as subsections.
+  - **4.4 Summary of Findings** (unchanged).
+- Swapped order: **Simulation Environment now precedes Hardware Platform**.
+- Deleted standalone `\section{Teacher Policy Implementation}`; its children are now subsubsections under 4.1.1.
+- Updated chapter intro `\cref` list to match new structure (`sec:teacher_implementation` removed; `sec:teacher_training_setup` and `sec:results` added).
+
 ### Chapter 3 — Methods (restructure per supervisor outline)
 - **3.1 Problem Formulation**: collapsed POMDP definition, objective, and the privileged-vs-partial-observability discussion into a single tighter section. The "privileged vs. partial" subsection was dropped as a standalone heading; its content now motivates the asymmetric actor–critic in §3.2.
 - **3.2 Privileged Teacher Training**: kept Asymmetric Actor–Critic, PPO Objective, Reward Structure (kept short), and ADR (kept short). Reward and ADR explicitly forward to Ch.4 for concrete numbers.
