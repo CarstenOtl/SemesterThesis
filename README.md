@@ -53,8 +53,12 @@ pdflatex main.tex
 ],
 "latex-workshop.latex.recipe.default": "first",
 "latex-workshop.view.pdf.viewer": "tab",
-"latex-workshop.latex.autoBuild.run": "onSave"
+"latex-workshop.latex.autoBuild.run": "onSave",
+"latex-workshop.latex.search.rootFiles.exclude": ["**/cover.tex"],
+"latex-workshop.latex.rootFile.doNotPrompt": true
 ```
+
+> **Note:** The last two lines prevent LaTeX Workshop from auto-detecting `Report/cover.tex` as a root file. `cover.tex` is a standalone document used only for printing the physical thesis cover and currently fails to compile against the latest `AIRlatex.cls`; excluding it ensures saves only build `main.tex`.
 
 4. Open `Report/main.tex` — the PDF will build automatically on save (`Ctrl+S`).
    View the PDF with `Ctrl+Alt+V`. Click in the PDF to jump to source (SyncTeX).

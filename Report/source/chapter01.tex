@@ -24,20 +24,13 @@ For dexterous hands, where unsafe actions can cause hardware damage (e.g., jammi
 \section{Problem Statement}%
 \label{sec:problem_statement}%
 
-This thesis addresses the problem of learning a vision-based dexterous grasping policy through simulation, with a focus on making the distillation from a privileged teacher to a vision-based student both effective and safe.
+From the situation outlined above, a general problem emerges: dexterous multi-fingered hands are hardware-ready, yet no scalable recipe exists for obtaining grasping policies that are simultaneously \emph{deployable on real hardware} (i.e., driven by realistic sensor inputs rather than privileged state) and \emph{safe to train}, in the sense that the training procedure itself does not rely on repeatedly visiting states that would damage the hand or the object on a physical system.
 
-Concretely, the work builds on the DextrAH-RGB framework~\cite{Singh2025}, which proposes a two-stage pipeline:
-\begin{enumerate}
-    \item A \textbf{privileged teacher policy} is trained via \ac{RL} (\ac{PPO}) in a GPU-accelerated physics simulator with access to ground-truth object poses, joint states, and contact information.
-    \item A \textbf{vision-based student policy} is distilled from the teacher using DAgger, learning to map RGB observations to grasp actions.
-\end{enumerate}
+The currently dominant pipeline, in which a privileged \ac{RL} teacher is trained in simulation and subsequently distilled into a sensor-based student, addresses the first requirement but not the second.
+Standard distillation algorithms treat the student purely as an imitation target and provide no mechanism to avoid unsafe states encountered during the student's own rollouts.
+As dexterous grasping moves closer to real-world deployment, this gap becomes the limiting factor: the cost of an unsafe episode is no longer a reset in simulation but potential hardware damage, and the question of \emph{how} a student policy is trained becomes as important as the final task performance it achieves.
 
-The original DextrAH-RGB work employs \acp{FGP} built on geometric fabrics~\cite{Ratliff2023} and uses DAgger for distillation.
-This thesis departs from the original approach in two key ways:
-\begin{itemize}
-    \item The teacher policy is trained as a standard RL policy \textbf{without geometric fabrics}, using custom reward functions in an Isaac Lab direct environment (\texttt{DirectRLEnv}) with the Agile Hand mounted on a \ac{FR3} arm.
-    \item The distillation step replaces DAgger with \textbf{SafeDAgger}~\cite{Zhang2016}, a query-efficient variant that learns a safety classifier to determine when the teacher should intervene, thereby reducing unsafe episodes during training. This is further informed by DexSafeDagger~\cite{ChiZhang2026}, an unpublished extension of SafeDAgger that incorporates Q-value-based failure prediction for dexterous manipulation.
-\end{itemize}
+This thesis therefore addresses the problem of distilling a privileged dexterous grasping teacher into a vision-based student in a way that is both effective in terms of grasp success and explicit about training-time safety, and asks under what conditions such a safety-aware distillation can match or improve upon the standard approach.
 
 \section{Contributions}%
 \label{sec:contributions}%
