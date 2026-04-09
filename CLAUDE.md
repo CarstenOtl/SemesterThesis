@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a LaTeX semester thesis (currently) and future master's thesis for TUM (Technical University of Munich), using the **AIRlatex** document class from the Chair of Robotics, Artificial Intelligence and Real-time Systems (I6/AIR). The thesis is written in English.
 
-**Title:** Dexterous Manipulation of Unknown Objects & Fine Tool Use with Dual-Arm, Dual-Hand Robots
+**Title (semester thesis):** On the Training-Time Safety of Privileged Policy Distillation for Dexterous Grasping: A DAgger vs. SafeDAgger Study
+**Working title (master's thesis):** Dexterous Manipulation of Unknown Objects & Fine Tool Use with Dual-Arm, Dual-Hand Robots
 
 **Author:** Carsten Oertel
 **Supervisor:** Prof. Knoll (I6/AIR chair)
@@ -68,25 +69,27 @@ Comparison of **DAgger vs. SafeDAgger** for distilling a privileged dexterous gr
 
 ### Thesis Structure (Target ~40 pages)
 
-- `chapter01.tex` — **Introduction** (WRITTEN): Motivation, problem statement, contributions, thesis outline. ~3 pages.
-- `chapter02.tex` — **Related Work** (WRITTEN): Classical control, grasp planning, RL fundamentals, sim-to-real, IL/distillation (policy distillation concept, DAgger/SafeDAgger/DexSafeDagger), dexterous manipulation, simulation frameworks. ~6 pages.
-- `chapter03.tex` — **Methods** (WRITTEN, mathematical): Purely abstract/mathematical chapter. POMDP formulation, privileged vs partial observability, asymmetric actor-critic, PPO objective, reward structure formalization, ADR formulation, DAgger algorithm (with L2 and KL loss variants), SafeDAgger with safety policy and intervention mechanism, DexSafeDagger Q-value risk, multi-teacher distillation. Contains Algorithm blocks for DAgger and SafeDAgger. No implementation details — those are in Chapter 4.
-- `chapter04.tex` — **Experiments & Results** (MOSTLY WRITTEN, restructured per supervisor outline): Now organized as **4.1 Experimental Setup** (4.1.1 Teacher Policy Training [Sim Env, Hardware, Object Set, Episode Structure, Obs/Action Space, Reward, Network, Training Config, ADR, Sim-to-Real Curriculum design], 4.1.2 Student Policy Distillation, 4.1.3 Evaluation Metrics), **4.2 Ablation Studies**, **4.3 Results, Graphs and Tables** (4.3.1 Teacher Training Results, 4.3.2 Distillation Results), **4.4 Summary of Findings**. Contains all implementation details and concrete numbers: PhysX/actuator tables, 13 VisDex objects, teacher obs/action tables, reward terms, LSTM 1024 architecture, PPO hyperparams, ADR ranges, student ResNet-18 + cross-attention + LSTM 512, SafeDAgger config, GSR/UER metrics with physics_instability split. Results cover teachers 9/10/11 and distillation runs 1c–11b (best student: run 10b SafeDAgger 79.2% GSR). Key findings: teacher quality dominates distillation method, sim2real teacher produces safer students, SafeDAgger more robust under ADR. Remaining placeholders: some figures, GPU specs, wall-clock times.
-- `chapter05.tex` — **Discussion & Conclusion** (PLACEHOLDER ONLY): Needs to be written.
-- `abstract.tex` — Still contains placeholder blind text.
+- `chapter01.tex` — **Introduction** (WRITTEN, revised per supervisor feedback): Motivation, Problem Statement (now framed as a *general* problem — dexterous hands hardware-ready but no scalable recipe for policies that are both deployable and safe to train — before the methodological specifics), Contributions, Thesis Outline. ~3 pages.
+- `chapter02.tex` — **Related Work** (WRITTEN, restructured per supervisor outline): Now organized as 3 thematic sections around what others have done. **2.1 Dexterous Grasping with Multi-Fingered Hands** (2.1.1 Rule-based/analytical; 2.1.2 Learning-based). **2.2 Privileged Teacher–Student Distillation** (2.2.1 BC and DAgger; 2.2.2 Safety-aware and mixed-control variants — folds SafeDAgger; demotes DexSafeDagger to a single sentence). **2.3 Sim-to-Real Transfer and Generalization** (2.3.1 DR/ADR; 2.3.2 System identification — honest note that no sysid was performed in this work). Classical Robot Control, RL primer (MDP/PPO definitions), and the standalone Simulation Frameworks section were cut (content lives in Ch.3/Ch.4). Domain randomization figure attributed to Weng's 2019 blog post (`@online{Weng2019DR}`), not Tobin et al. ~5 pages.
+- `chapter03.tex` — **Methods** (WRITTEN, mathematical): Strictly abstract/mathematical. **3.1 Problem Formulation** opens with a plain-language MDP introduction (states, actions, transitions, reward, discount, Markov property, agent loop) before extending to the POMDP used for dexterous grasping. **3.2 Privileged Teacher Training**: Asymmetric Actor–Critic, Reward Structure (short, forwards to Ch.4), Automatic Domain Randomization (short, forwards to Ch.4). The standalone PPO Objective subsection was removed. **3.3 Policy Distillation**: 3.3.1 DAgger + SafeDAgger (DAgger pseudocode matches Ross 2011 verbatim including "any policy in Π"; Π is defined in surrounding text; SafeDAgger in this thesis uses *direct action-disagreement gating* rather than a learned classifier, since the teacher is already queried every step). 3.3.2 Loss Function Selection presents plain L2, **inverse-variance-weighted L2** (`eq:wl2_loss`, the loss actually used in this thesis and in the DextrAH-RGB codebase), and KL, and derives weighted L2 as a simplification of the KL between two diagonal-covariance Gaussians. 3.3.3 RGB-Based Distillation describes the stereo ResNet-18 encoder with `[embed]` token and cross-view attention mask verbatim from DextrAH-RGB, plus recurrent LSTM head and visual DR; includes a combined two-panel figure (`fig:stereo_full`) for the encoder and attention mask.
+- `chapter04.tex` — **Experiments & Results** (MOSTLY WRITTEN, restructured per supervisor outline): **4.1 Experimental Setup** → 4.1.1 Teacher Policy Training (Simulation Environment precedes Hardware Platform; Asset Integration and Contact Physics now live *under* Hardware Platform; Sensor Setup paragraph explicitly distinguishes proprioception (everywhere), joint-torque and sim-only contact wrenches (privileged critic only; Agile Hand has no real contact sensors), and vision (student only via stereo encoder); Episode Structure has formal termination equation plus 9-row termination table; Reward Design table reflects actual codebase (`fr3_agilehand` env) grouped into Shaping/Task/Regularization; ADR is renamed "Automatic Domain Randomization"; Sim-to-Real Curriculum). 4.1.2 Student Policy Distillation. 4.1.3 Evaluation Metrics. **4.2 Ablation Studies** (§4.2.5 Safety Threshold Sensitivity has a visible `\todo` note for the β_safe decay plot). **4.3 Results, Graphs and Tables** (4.3.1 Teacher Training, 4.3.2 Distillation). **4.4 Summary of Findings**. Best student so far: run 10b SafeDAgger 79.2% GSR at 92% of teacher 11 ceiling. Remaining placeholders: some figures, GPU specs, wall-clock times, β_safe-over-training plot.
+- `chapter05.tex` — **Discussion & Conclusion** (WRITTEN, first draft). Sections: Discussion (revisits RQ1–RQ3 with the actual numbers from Ch.4; subsections on why teacher quality dominates the distillation algorithm and on the outsized impact of implementation details such as the one-hot bug fix), Limitations (sim-only, single hand/arm/task, action-disagreement gating instead of a learned classifier, limited scale, no fabric-guided policies), Conclusion, and Future Work (real-robot validation + sysid, finger-gaiting and fine tool use, learned classifier / Q-value gating à la `ChiZhang2026`, integrating geometric fabrics).
+- `abstract.tex` — **WRITTEN** (English + German): ~6-sentence abstract covering the general problem, the DAgger vs. SafeDAgger comparison, teacher numbers (85.8% GSR / 12.1% UER), student numbers (72.7% vs. 71.7% main run, up to 79.2%), and the two headline findings (teacher quality dominates, SafeDAgger degrades more gracefully under hard ADR).
 
 ### Current State
 
-- Chapters 1-2 are **fully written** with proper citations.
-- Chapter 3 is **fully written** as a mathematical/abstract methods chapter (POMDP, PPO, DAgger, SafeDAgger, DexSafeDagger). Uses `algorithm`/`algpseudocode` for algorithm blocks.
-- Chapter 4 is **mostly written** and was restructured per supervisor outline (4.1 Experimental Setup → 4.2 Ablations → 4.3 Results → 4.4 Summary; see chapter list above). Concrete data from experiment logs exp_02–exp_06 plus run 9–11 distillation experiments. Best student: run 10b (SafeDAgger, 32 envs, 79.2% GSR, 92% of teacher 11 ceiling). Key findings: teacher quality dominates distillation method, sim2real teacher produces safer students, SafeDAgger degrades less than DAgger under ADR-5 distillation. Remaining placeholders: some figures, GPU model/wall-clock times.
-- Chapter 5 is a **bare placeholder**.
-- The `abstract.tex` still contains placeholder blind text.
-- Bibliography (`literature.bib`) contains ~31 entries (including Hinton2015 for policy distillation), all `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
+- Chapters 1–2 are **fully written** with proper citations and have been restructured per first-draft supervisor feedback (see chapter list above).
+- Chapter 3 is **fully written** as a mathematical/abstract methods chapter (POMDP with plain-language MDP intro, asymmetric actor–critic, DAgger, SafeDAgger with direct action-disagreement gating, weighted-L2 and KL losses, RGB-based stereo encoder). Uses `algorithm`/`algpseudocode` for algorithm blocks.
+- Chapter 4 is **mostly written** and restructured per supervisor outline (see chapter list above). Remaining placeholders: some figures, GPU model/wall-clock times, and the β_safe-decay plot flagged by a `\todo` note in §4.2.5.
+- Chapter 5 is **written** as a first draft (Discussion, Limitations, Conclusion, Future Work).
+- `abstract.tex` is **written** in both English and German with real numbers from the experiments.
+- Bibliography (`literature.bib`) contains ~35 entries including `Weng2019DR` (online), `He2016` (ResNet), `Dosovitskiy2020` (ViT), `Wang2024DUSt3R`, and `Hinton2015`. All `abstract`/`note` fields stripped (they caused biber/pdflatex crashes).
 - `literature1.bib` is **no longer used** (commented out in main.tex); all references are in `literature.bib`.
-- Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package with POMDP added).
-- `.gitignore` is configured to exclude LaTeX build artifacts but keep PDFs.
-- `main.tex` uses `algpseudocode` (not `algorithmicx`) for algorithm pseudocode in Chapter 3.
+- Front matter includes: Table of Contents, List of Figures, List of Tables, List of Abbreviations (using `acronym` package; POMDP, CNN, MLP, KL, etc. are all defined).
+- `.gitignore` excludes LaTeX build artifacts and `Report/cover.pdf`; PDFs otherwise kept.
+- `main.tex` uses `algpseudocode` (not `algorithmicx`) for algorithm pseudocode in Chapter 3, and additionally loads `multirow` (grouped reward table) and `todonotes` (visible in-text TODOs).
+- `CHANGELOG.md` at the repo root tracks supervisor-feedback revisions in reverse-chronological order.
+- `.vscode/settings.json` configures LaTeX Workshop to build `main.tex` on save and **excludes `cover.tex` from root-file detection** (see Known Issues).
 
 ## Build Commands
 
@@ -120,15 +123,22 @@ rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.to
 - **Do NOT put HTML tags** (`<br/>`, `<b>`, etc.), Unicode math symbols, or unescaped special characters in `note` or `abstract` fields in `.bib` files. Biber passes them to the `.bbl` file and pdflatex crashes with `! Illegal parameter number in definition of \NewCount`.
 - **TeXstudio config:** The bibliography tool must be set to `txs:///biber` in `Options -> Configure TeXstudio -> Build -> Default Bibliography Tool`. If set to bibtex, references won't resolve.
 
+### Known Issues Outside the Build
+
+- **`Report/cover.tex` is broken** against the current `AIRlatex.cls` (2026/03/16): it calls `\AIRstudentthesisCover`, a macro that no longer exists (likely renamed upstream). `cover.tex` is a standalone document for printing the physical bound cover and is not included by `main.tex`, so the thesis build is unaffected. LaTeX Workshop used to auto-detect `cover.tex` as a root file and fail on save; `.vscode/settings.json` now excludes it (`latex-workshop.latex.search.rootFiles.exclude`). Fix `cover.tex` only when a hardcopy is actually needed.
+
 ## Repository Structure
 
-- `Report/main.tex` — Root document; sets class options, loads packages, includes chapters
+- `Report/main.tex` — Root document; sets class options, loads packages (`multirow`, `todonotes`, `subcaption`, `booktabs`, ...), includes chapters
 - `Report/AIRlatex.cls` — TUM AIRlatex document class (do not edit)
-- `Report/cover.tex` — Separate document for printing a physical cover
+- `Report/cover.tex` — Separate document for printing a physical cover (currently broken, see Known Issues)
 - `Report/source/` — Chapter files (`chapter01.tex` through `chapter05.tex`), `abstract.tex`, `appendix.tex`
-- `Report/source/literature.bib` — Bibliography database (single active bib file, ~31 entries)
+- `Report/source/literature.bib` — Bibliography database (single active bib file, ~35 entries)
 - `Report/figures/` — Images and TikZ figures (supports PDF, PNG, TikZ formats)
   - `Report/figures/trained_objects/` — Directory for training object images
+  - `Report/figures/examples/` — AIRlatex template example figures (moved here to declutter `figures/`)
+- `CHANGELOG.md` — Tracks thesis-content revisions in reverse-chronological order
+- `.vscode/settings.json` — LaTeX Workshop configuration (build on save, excludes `cover.tex` from root-file detection)
 - `additonal_info/` — Reference materials:
   - `Masters Thesis Expose - Carsten Oertel.pdf` — Full expose with objectives, WPs, milestones, research questions
   - `SemesterThesis-Introduction-Presentation.pdf` — Introduction presentation with SotA review, pipeline diagram, evaluation plan

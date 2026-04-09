@@ -66,18 +66,6 @@ while the critic estimates the state--value function
 This asymmetry allows the critic to use richer information for more accurate value estimates during training, while the actor learns a policy that depends only on the subset of state that will subsequently be available to the student through distillation.
 In effect, the privileged information is consumed by the critic to shape gradients but never directly enters the deployed policy.
 
-\subsection{PPO Objective}%
-\label{sec:ppo_objective}%
-
-The teacher is optimized using the clipped \ac{PPO} surrogate objective~\cite{Schulman2017}:
-%
-\begin{equation}\label{eq:ppo_loss}
-    L^{\text{CLIP}}(\theta) = \mathbb{E}_t\!\left[\min\!\left(r_t(\theta)\hat{A}_t,\;\text{clip}\!\left(r_t(\theta),\, 1-\epsilon,\, 1+\epsilon\right)\hat{A}_t\right)\right],
-\end{equation}
-%
-where $r_t(\theta) = \pi_\theta(a_t \mid o_t^{\text{actor}}) / \pi_{\theta_{\text{old}}}(a_t \mid o_t^{\text{actor}})$ is the importance sampling ratio and $\epsilon$ is the clipping parameter.
-The advantage $\hat{A}_t$ is computed via generalized advantage estimation~\cite{Schulman2017} from the critic in \cref{eq:critic}.
-
 \subsection{Reward Structure}%
 \label{sec:reward_structure}%
 
@@ -90,7 +78,7 @@ The reward function decomposes as a weighted sum of $K$ task terms,
 each capturing a different aspect of grasping (approaching the object, establishing stable multi-finger contact, lifting the object to a goal height) along with regularization penalties on jerky or excessive actions.
 The specific reward terms and their weights are implementation choices and are detailed in \cref{sec:reward_implementation}.
 
-\subsection{Adaptive Domain Randomization}%
+\subsection{Automatic Domain Randomization}%
 \label{sec:adr_formulation}%
 
 To produce a teacher that transfers across varying physical conditions, the training environment applies \ac{ADR}~\cite{OpenAI2020}.
@@ -117,21 +105,22 @@ This section presents the distillation algorithm (DAgger and its safety-aware va
 
 The simplest distillation strategy, behavioral cloning on a fixed dataset of teacher trajectories, suffers from compounding errors: small deviations from the teacher's state distribution lead the student into states the dataset never covered, causing the policy to drift and fail~\cite{Ross2011}.
 DAgger~\cite{Ross2011} addresses this distribution shift by iteratively collecting data under the student's own policy while labelling it with the teacher's actions.
-The procedure is given in \cref{alg:dagger}.
+The procedure is given in \cref{alg:dagger}, where $\Pi$ denotes the class of student policies (e.g., all neural networks of a fixed architecture mapping partial observations to actions).
 
 \begin{algorithm}[htb]
 \caption{DAgger~\cite{Ross2011}}
 \label{alg:dagger}
 \begin{algorithmic}[1]
-\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student policy $\hat{\pi}_{\theta_1}$
+\State Initialize $\mathcal{D} \leftarrow \emptyset$
+\State Initialize $\hat{\pi}_1$ to any policy in $\Pi$
 \For{$i = 1, \ldots, N$}
-    \State Set roll-in policy $\pi_i = \beta_i \pi^* + (1 - \beta_i) \hat{\pi}_{\theta_i}$
-    \State Collect trajectories $\{(o_t^{\text{student}}, s_t)\}$ by executing $\pi_i$
-    \State Label $a_t^* = \pi^*(o_t^{\text{teacher}})$ for each visited state
-    \State Aggregate $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*)\}$
-    \State Train $\hat{\pi}_{\theta_{i+1}}$ on $\mathcal{D}$ by minimizing the imitation loss (\cref{sec:loss_selection})
+    \State Let $\pi_i = \beta_i \pi^* + (1 - \beta_i) \hat{\pi}_i$
+    \State Sample $T$-step trajectories using $\pi_i$
+    \State Get dataset $\mathcal{D}_i = \{(s, \pi^*(s))\}$ of visited states by $\pi_i$ and actions given by expert
+    \State Aggregate datasets: $\mathcal{D} \leftarrow \mathcal{D} \cup \mathcal{D}_i$
+    \State Train classifier $\hat{\pi}_{i+1}$ on $\mathcal{D}$
 \EndFor
-\State \Return $\hat{\pi}_{\theta_{N+1}}$
+\State \Return best $\hat{\pi}_i$ on validation
 \end{algorithmic}
 \end{algorithm}
 
@@ -141,99 +130,166 @@ After $N$ iterations, DAgger guarantees a policy with loss bounded by $\epsilon_
 
 \paragraph{SafeDAgger.}
 DAgger resolves distribution shift but does not prevent the student from visiting dangerous states during data collection, nor does it prioritize teacher queries for states where the student is most likely to fail.
-SafeDAgger~\cite{Zhang2016} augments DAgger with a learned \emph{safety policy} $D_\psi : \mathcal{O}^{\text{partial}} \to [0, 1]$, a binary classifier that predicts whether the student's action at a given observation can be considered safe.
-The safety label is defined by the action disagreement between student and teacher,
+SafeDAgger~\cite{Zhang2016} addresses both issues with a \emph{safety strategy}, that is, a state-dependent gating mechanism that decides, at every time step, whether the student or the teacher should execute the next action.
+The original formulation trains an auxiliary binary classifier $D_\psi$ to predict whether the student's action would disagree with the teacher's by more than a fixed action-disagreement threshold $\varepsilon$; at test time this classifier is used as a cheap stand-in for the teacher, which in the driving domain of~\cite{Zhang2016} is an expensive human expert.
+
+In the distillation setting considered in this thesis the teacher is a trained neural-network policy that is queried at every visited state anyway in order to label the aggregated dataset $\mathcal{D}_i$ in \cref{alg:dagger}.
+The learned safety classifier $D_\psi$ is therefore redundant: the same action-disagreement signal it is trained to predict can be computed directly from the already-available teacher action.
+Following this observation, the safety strategy used here replaces the learned classifier with the exact action disagreement, leaving the algorithmic structure of SafeDAgger otherwise unchanged.
+Concretely, let
 %
 \begin{equation}\label{eq:safety_label}
-    y_t = \begin{cases}
-        1 \quad (\text{safe}) & \text{if } \left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2 \leq \delta, \\
-        0 \quad (\text{unsafe}) & \text{otherwise},
-    \end{cases}
+    e_t \;=\; \left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2
 \end{equation}
 %
-with threshold $\delta > 0$, and $D_\psi$ is trained via binary cross-entropy on the aggregated dataset:
-%
-\begin{equation}\label{eq:safety_loss}
-    \mathcal{L}_D(\psi) = -\mathbb{E}\!\left[y_t \log D_\psi(o_t) + (1 - y_t) \log\!\left(1 - D_\psi(o_t)\right)\right].
-\end{equation}
-%
-During data collection, the safety policy switches control between student and teacher at each time step:
+denote the per-step L2 action disagreement.
+At each time step, the executed action is selected by thresholding $e_t$ against a \emph{safety threshold} $\delta > 0$:
 %
 \begin{equation}\label{eq:safedagger_intervention}
     a_t = \begin{cases}
-        \hat{\pi}_\theta(o_t^{\text{student}}) & \text{if } D_\psi(o_t^{\text{student}}) \geq 0.5, \\
-        \pi^*(o_t^{\text{teacher}}) & \text{otherwise}.
+        \hat{\pi}_\theta(o_t^{\text{student}}) & \text{if } e_t \leq \delta \quad (\text{student is considered safe}), \\
+        \pi^*(o_t^{\text{teacher}}) & \text{otherwise} \quad (\text{teacher intervenes}).
     \end{cases}
 \end{equation}
 %
-The result is an adaptive, state-dependent mixing policy: the teacher intervenes precisely when the student is predicted to deviate significantly, while the student acts autonomously where it is competent.
-The intervention rate naturally decays as the student improves, providing an implicit curriculum from teacher-guided exploration to student-autonomous execution.
+The threshold $\delta$ has the units of an action-space norm, not a probability, and its admissible range is $\delta \in (0, \infty)$: the extreme $\delta \to 0$ recovers pure behavior cloning on the teacher trajectory (the teacher acts everywhere), and $\delta \to \infty$ recovers vanilla DAgger (the student acts everywhere).
+Zhang and Cho~\cite{Zhang2016} do not report a principled recipe for choosing $\delta$; they select a single value in their steering-angle domain based on the error distribution of the initial supervised policy and leave it otherwise unspecified.
+In this thesis, $\delta$ is calibrated empirically against the distribution of $e_t$ observed early in training so that roughly $20$--$30$\% of environments are flagged unsafe at the start of distillation and the intervention rate decays naturally as the student improves.
+A concrete value and the calibration procedure, including the dependence of $\delta$ on the action-space dimensionality, are reported in \cref{sec:ablation_threshold}.
+
+The result is an adaptive, state-dependent mixing policy: the teacher intervenes precisely when the student would deviate significantly from the expert action, while the student acts autonomously wherever its action is already close to the teacher's.
+The intervention rate therefore decays as the student improves, providing an implicit curriculum from teacher-guided exploration to student-autonomous execution.
 The complete procedure is given in \cref{alg:safedagger}; \hlsafe{highlighted lines} mark the modifications relative to DAgger.
 
 \begin{algorithm}[htb]
-\caption{SafeDAgger~\cite{Zhang2016}. \hlsafe{Blue lines} indicate modifications relative to DAgger (\cref{alg:dagger}).}
+\caption{SafeDAgger~\cite{Zhang2016} with direct action-disagreement gating. \hlsafe{Blue lines} indicate modifications relative to DAgger (\cref{alg:dagger}).}
 \label{alg:safedagger}
 \begin{algorithmic}[1]
-\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student $\hat{\pi}_{\theta_1}$, \hlsafe{safety policy $D_{\psi_1}$}
+\State Initialize dataset $\mathcal{D} \leftarrow \emptyset$, student $\hat{\pi}_{\theta_1}$, \hlsafe{safety threshold $\delta > 0$}
 \For{$i = 1, \ldots, N$}
     \For{each time step $t$ in rollout}
-        \If{\hlsafe{$D_{\psi_i}(o_t^{\text{student}}) \geq 0.5$}}
+        \State Query teacher: $a_t^* = \pi^*(o_t^{\text{teacher}})$
+        \State \hlsafe{Compute action disagreement $e_t = \|\hat{\pi}_{\theta_i}(o_t^{\text{student}}) - a_t^*\|_2$}
+        \If{\hlsafe{$e_t \leq \delta$}}
             \State \hlsafe{Execute $a_t = \hat{\pi}_{\theta_i}(o_t^{\text{student}})$} \Comment{\hlsafe{Student acts}}
         \Else
-            \State \hlsafe{Execute $a_t = \pi^*(o_t^{\text{teacher}})$} \Comment{\hlsafe{Teacher intervenes}}
+            \State \hlsafe{Execute $a_t = a_t^*$} \Comment{\hlsafe{Teacher intervenes}}
         \EndIf
-        \State Query teacher: $a_t^* = \pi^*(o_t^{\text{teacher}})$
-        \State \hlsafe{Compute safety label $y_t$ via \cref{eq:safety_label}}
-        \State $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*$, \hlsafe{$y_t$}$)\}$
+        \State $\mathcal{D} \leftarrow \mathcal{D} \cup \{(o_t^{\text{student}}, a_t^*)\}$
     \EndFor
     \State Update $\hat{\pi}_{\theta_{i+1}}$ on $\mathcal{D}$ using the loss in \cref{sec:loss_selection}
-    \State \hlsafe{Update $D_{\psi_{i+1}}$ by minimizing \cref{eq:safety_loss} on $\mathcal{D}$}
 \EndFor
 \State \Return $\hat{\pi}_{\theta_{N+1}}$
 \end{algorithmic}
 \end{algorithm}
 
-For completeness, an unpublished concurrent extension by Zhang~\cite{ChiZhang2026}, referred to as DexSafeDagger, replaces the binary action-disagreement classifier with a learned Q-value-based risk predictor that reuses the teacher's value function to estimate state-level risk.
+For completeness, an unpublished concurrent extension by Zhang~\cite{ChiZhang2026}, referred to as DexSafeDagger, replaces the action-disagreement criterion of \cref{eq:safedagger_intervention} with a learned Q-value-based risk predictor that reuses the teacher's value function to estimate state-level risk.
 DexSafeDagger is not part of this thesis and is mentioned only because it directly motivated the choice of SafeDAgger as the safety-aware baseline studied here.
 
 \subsection{Loss Function Selection}%
 \label{sec:loss_selection}%
 
 Both DAgger and SafeDAgger leave open the choice of imitation loss used to fit the student to the teacher's labels.
-The most common choice is the L2 regression loss on the action means,
+The simplest choice is the plain L2 regression loss on the action means,
 %
 \begin{equation}\label{eq:l2_loss}
-    \mathcal{L}_{\text{L2}}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\!\left[\left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2^2\right],
+    \mathcal{L}_{\text{L2}}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\!\left[\left\| \mu_\theta(o_t^{\text{student}}) - \mu^*(o_t^{\text{teacher}}) \right\|_2^2\right],
 \end{equation}
 %
-where $d_{\hat{\pi}}$ denotes the state distribution induced by the student policy under the DAgger or SafeDAgger roll-in scheme.
-\cref{eq:l2_loss} is straightforward to optimize and requires only the teacher's deterministic action at each visited state, but it discards information about the teacher's action distribution: two teachers with very different uncertainties but the same mean action are treated identically.
+where $\mu_\theta$ and $\mu^*$ are the mean actions of the student and teacher Gaussian policies and $d_{\hat{\pi}}$ is the state distribution induced by the roll-in scheme.
+\cref{eq:l2_loss} is straightforward to optimize, but it treats every action dimension and every state as equally important, and it discards the teacher's own uncertainty: two teachers with very different action variances but the same mean are penalized identically.
 
-When both teacher and student parameterize stochastic Gaussian policies, an alternative is the forward KL divergence between the teacher's and student's action distributions,
+A natural refinement, and the one adopted in this thesis, is the \emph{inverse-variance-weighted L2 loss}, in which each action dimension is rescaled by the teacher's own per-dimension variance $\sigma^{*\,2}_i(o_t^{\text{teacher}})$:
+%
+\begin{equation}\label{eq:wl2_loss}
+    \mathcal{L}_{\text{wL2}}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\!\left[\sum_{i=1}^{\dim \mathcal{A}} \frac{\bigl(\mu_{\theta,i}(o_t^{\text{student}}) - \mu^*_i(o_t^{\text{teacher}})\bigr)^2}{\sigma^{*\,2}_i(o_t^{\text{teacher}})}\right].
+\end{equation}
+%
+The weighted form has a clean probabilistic interpretation: up to additive constants, minimizing \cref{eq:wl2_loss} is equivalent to maximizing the log-likelihood of the student's mean action under the teacher's Gaussian.
+Dimensions in which the teacher is confident (small $\sigma^*$) contribute more strongly to the loss, while dimensions in which the teacher is uncertain (large $\sigma^*$) contribute less, yielding an automatic, state-dependent weighting that does not require hand-tuning arm-versus-hand action scales.
+Plain L2 (\cref{eq:l2_loss}) is recovered as the special case $\sigma^*_i \equiv \text{const}$.
+
+The weighted L2 loss in \cref{eq:wl2_loss} is in fact how DextrAH-RGB~\cite{Singh2025} formulates its distillation objective, and it can be derived as a simplification of the forward \ac{KL} divergence between the teacher's and student's Gaussian action distributions.
+Writing the per-step \ac{KL} between two diagonal-covariance Gaussians $\pi^*(\cdot\mid o^{\text{teacher}}) = \mathcal{N}(\mu^*, \operatorname{diag}(\sigma^{*\,2}))$ and $\hat{\pi}_\theta(\cdot\mid o^{\text{student}}) = \mathcal{N}(\mu_\theta, \operatorname{diag}(\sigma_\theta^{\,2}))$ out in closed form gives
 %
 \begin{equation}\label{eq:kl_loss}
-    \mathcal{L}_{\text{KL}}(\theta) = \mathbb{E}_{o_t^{\text{student}} \sim d_{\hat{\pi}}}\!\left[D_{\text{KL}}\!\left(\pi^*(\cdot \mid o_t^{\text{teacher}}) \;\|\; \hat{\pi}_\theta(\cdot \mid o_t^{\text{student}})\right)\right].
+    D_{\text{KL}}\!\left(\pi^* \,\|\, \hat{\pi}_\theta\right)
+    \;=\; \sum_{i=1}^{\dim \mathcal{A}} \left[
+        \log \frac{\sigma_{\theta,i}}{\sigma^*_i}
+        \;+\; \frac{\sigma^{*\,2}_i + (\mu^*_i - \mu_{\theta,i})^2}{2\,\sigma_{\theta,i}^{\,2}}
+        \;-\; \tfrac{1}{2}
+    \right].
 \end{equation}
 %
-The KL loss matches the full action distribution rather than only the mean and is therefore sensitive to teacher uncertainty: in states where the teacher is highly confident, the student is forced to match closely, while in states where the teacher is uncertain, the student is allowed more flexibility.
-For visuomotor distillation in particular, prior work has reported that the KL formulation outperforms plain L2 regression~\cite{Singh2025}.
-The choice between \cref{eq:l2_loss} and \cref{eq:kl_loss} is therefore not purely cosmetic, and is treated as a design parameter in the experiments of \cref{ch:experiments}.
+If the student's variance is held fixed to the teacher's (\(\sigma_\theta \equiv \sigma^*\)), or equivalently if the terms that depend only on $\sigma_\theta$ are dropped as constants during optimization, everything except the mean-matching term becomes an additive constant, and \cref{eq:kl_loss} reduces (up to a factor of $\tfrac{1}{2}$) to the inverse-variance-weighted mean-matching term of \cref{eq:wl2_loss}.
+The weighted L2 loss is therefore a strict simplification of the \ac{KL} loss in which the student is no longer asked to regress the teacher's variance, only its mean, with each dimension automatically rescaled by the teacher's own confidence.
+This is the formulation used in the DextrAH-RGB codebase~\cite{Singh2025} and the one adopted for all distillation experiments in this thesis.
 
 \subsection{RGB-Based Distillation}%
 \label{sec:rgb_distillation}%
 
-The student observation function $O^{\text{partial}}$ used in this thesis combines proprioception with one or more RGB images rendered from the simulator's virtual cameras.
-Distilling into a vision-based student raises three considerations on top of the algorithmic framework above.
+The student observation function $O^{\text{partial}}$ used in this thesis combines proprioception with two RGB frames rendered from a pair of virtual cameras arranged in a stereo configuration.
+Distilling into such a vision-based student raises three theoretical considerations on top of the algorithmic framework above: the architecture of the visual encoder, the need for photorealistic rendering inside the simulation loop, and the additional \emph{visual} component of the sim-to-real gap.
+The rest of this section describes the encoder architecture introduced by DextrAH-RGB~\cite{Singh2025}, which is reused without modification in this thesis; the concrete implementation details (camera resolution, baseline, placement, and the visual randomization scheme) are deferred to \cref{sec:student_implementation}.
 
-First, the student must contain a \emph{visual encoder} that maps raw RGB frames into a compact feature representation suitable for control.
-Unlike the privileged teacher, which receives a low-dimensional state vector and can therefore use a small recurrent backbone, the student carries the additional burden of perception and is structured as a convolutional encoder followed by a recurrent control head; the concrete architecture is described in \cref{sec:student_network}.
+\paragraph{Stereo ResNet encoder with cross-attention.}
+The motivation for using a stereo rather than a monocular setup is that the student has to infer the 3D position of the object, and of its own hand relative to the object, without access to the privileged object pose that the teacher saw.
+A single image supplies shape cues but is ambiguous about metric depth; a stereo pair additionally encodes parallax, which, together with a known baseline, determines depth up to the accuracy of the implicit matching.
+Rather than computing an explicit depth map as an intermediate step, DextrAH-RGB~\cite{Singh2025} lets the policy network learn its own implicit stereo matching through a cross-attention mechanism, and this thesis follows the same design.
 
-Second, training requires \emph{photorealistic rendering inside the simulation loop}.
-At each environment step the cameras must produce an image that is consistent with the underlying physics state, and rendering must be fast enough not to dominate the wall-clock cost of distillation.
-This couples the distillation algorithm to the choice of simulator: GPU-accelerated tiled rendering, as used in DextrAH-RGB~\cite{Singh2025}, is what makes RGB-based distillation tractable at the scales required by DAgger and SafeDAgger.
+Concretely, the left and right RGB frames are first passed through a \emph{Siamese} \ac{CNN} backbone, that is, a single ResNet-18~\cite{He2016} whose weights are shared between the two views.
+The ResNet is initialized from an ImageNet-pretrained checkpoint and \emph{fine-tuned end-to-end} during distillation rather than frozen; Singh et al.~\cite{Singh2025} report that fine-tuning the backbone materially improves performance over freezing it, and that training from scratch works but converges more slowly.
+The last two layers of the standard ResNet-18 are removed, so that instead of a single pooled feature vector the backbone returns a spatial feature map, which is reshaped into a sequence of $128$ tokens of dimension $128$ per view.
+This tokenization is what makes attention-based stereo matching possible.
+The high-level data flow through the encoder is shown in \cref{fig:stereo_encoder}.
 
-Third, the sim-to-real gap acquires a \emph{visual} component on top of the dynamics gap addressed by \ac{ADR} in \cref{sec:adr_formulation}.
-Differences in lighting, materials, camera intrinsics, and background clutter between simulation and the real world can derail an otherwise well-trained student.
-The standard mitigation, also adopted here, is visual domain randomization: at every episode reset the simulator perturbs lighting, textures, camera pose, and background to expose the visual encoder to a broad distribution of appearances.
+
+The two token sequences, one per view, are then concatenated with a single \emph{learnable} \verb|[embed]| \emph{token}, analogous to the \verb|[CLS]| token of a Vision Transformer~\cite{Dosovitskiy2020}, and passed through a two-layer transformer with a structured cross-attention mask (\cref{fig:cross_attention_mask}).
+The mask enforces three rules:
+\begin{itemize}
+    \item The \verb|[embed]| token attends to every other token, so that its output can summarize information from both views.
+    \item Left-view tokens attend only to right-view tokens and the \verb|[embed]| token, and vice versa for right-view tokens.
+    \item Tokens from the same view are never allowed to attend to each other inside this transformer.
+\end{itemize}
+This strictly cross-view attention pattern, visualized in \cref{fig:cross_attention_mask}, encourages the network to learn correspondences \emph{between} the two views, which is the operation an explicit stereo-matching algorithm would perform, without any explicit depth supervision.
+The same idea was used, in a reconstruction rather than control setting, by DUSt3R~\cite{Wang2024DUSt3R}.
+After the transformer, only the output of the \verb|[embed]| token is retained; it is passed through a small \ac{MLP} to produce a $64$-dimensional \emph{stereo embedding} that compactly summarizes the depth-relevant content of both frames.
+
+\begin{figure}[htb]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[anchor=south west, inner sep=0] (img) at (0,0)
+                {\includegraphics[height=5cm,keepaspectratio]{stereo-Encoder}};
+            \begin{scope}[x={(img.south east)}, y={(img.north west)}]
+                \node[anchor=east, font=\sffamily] at (-0.005, 0.62) {$\mathcal{I}_{\text{left}}$};
+                \node[anchor=east, font=\sffamily] at (-0.005, 0.17) {$\mathcal{I}_{\text{right}}$};
+            \end{scope}
+        \end{tikzpicture}
+        \caption{Stereo encoder.}
+        \label{fig:stereo_encoder}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[height=5cm,keepaspectratio]{cross-attention-mask}
+        \caption{Cross-attention mask.}
+        \label{fig:cross_attention_mask}
+    \end{subfigure}
+    \caption{Stereo visual encoder used in the student policy, adapted from~\cite{Singh2025}. (a) The left and right camera frames $\mathcal{I}_{\text{left}}$ and $\mathcal{I}_{\text{right}}$ are passed through a pre-trained ResNet-18 with the last two layers removed. Each image is encoded into a $40\,960$-dimensional feature vector, projected down to $16\,384$ dimensions, and split into $128$ tokens of dimension $128$. The two token sequences, together with a single learnable \texttt{[embed]} token, are fed into a two-layer transformer that performs cross-attention between the views; the output corresponding to the \texttt{[embed]} token is mapped by an \ac{MLP} into the final $64$-dimensional stereo embedding. (b) The cross-attention mask used inside that transformer (turquoise cells indicate permitted attention). The \texttt{[embed]} token attends to every other token in the sequence; tokens from $\mathcal{I}_{\text{left}}$ attend only to the \texttt{[embed]} token and to tokens from $\mathcal{I}_{\text{right}}$, and vice versa. Intra-view attention is disabled, so the transformer is forced to learn correspondences \emph{between} the two views, which is the operation an explicit stereo-matching algorithm would perform.}
+    \label{fig:stereo_full}
+\end{figure}
+
+\paragraph{Recurrent control head.}
+The stereo embedding is concatenated with the proprioceptive observation vector (joint positions and velocities of arm and hand) and fed into an \ac{LSTM} with $512$ hidden units, whose output is concatenated with its own input through a skip connection before being mapped to the action distribution.
+The \ac{LSTM} carries temporal context across time steps, which is essential because a single stereo frame is not enough to disambiguate whether the hand is currently approaching, grasping, or lifting the object.
+During distillation the entire stack, ResNet encoder, transformer, \ac{LSTM}, and action head, is optimized jointly under the inverse-variance-weighted L2 loss of \cref{eq:wl2_loss}; the ResNet weights are cast to bfloat16 to keep memory and throughput manageable on the GPUs used for rendering.
+
+\paragraph{Photorealistic rendering and visual domain randomization.}
+Training this architecture end-to-end requires that the two virtual cameras produce photorealistic frames inside the simulation loop at every environment step, and that rendering be fast enough not to dominate the wall-clock cost of DAgger or SafeDAgger.
+This couples the distillation algorithm tightly to the choice of simulator: GPU-accelerated tiled rendering in Isaac Lab is what makes RGB-based distillation tractable at the scales required here.
+Furthermore, the sim-to-real gap acquires a \emph{visual} component on top of the dynamics gap addressed by \ac{ADR} in \cref{sec:adr_formulation}: differences in lighting, materials, camera intrinsics, and background clutter between simulation and the real world can derail an otherwise well-trained student.
+The standard mitigation, also adopted here, is visual domain randomization, in which the simulator perturbs lighting, textures, camera pose, and background at every episode reset so that the visual encoder is exposed to a broad distribution of appearances during training.
 The specific visual randomization scheme used in this thesis is reported in \cref{sec:student_implementation}.
 %

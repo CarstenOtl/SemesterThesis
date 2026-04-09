@@ -47,6 +47,56 @@ The simulation runs at 120\,Hz with a control frequency of 60\,Hz (decimation fa
     \end{tabular}
 \end{table}
 
+\subsubsection{Hardware Platform}%
+\label{sec:hardware}%
+
+The robotic platform consists of a \ac{FR3} 7-\acs{DoF} arm equipped with an Agile Hand, forming a 23-\acs{DoF} arm--hand system.
+
+\paragraph{Franka Research~3.}
+The \ac{FR3} is a torque-controlled collaborative robot arm with seven revolute joints and integrated joint torque sensors on every axis.
+% PLACEHOLDER: Add FR3 payload, reach, repeatability specs. Cite Franka Emika datasheet.
+The arm provides Cartesian impedance control capabilities, though in this work all joints are controlled via position targets with simulated PD controllers.
+The factory torque limits are 87\,Nm for joints~1--4 and 12\,Nm for joints~5--7.
+
+\paragraph{Agile Hand.}
+The Agile Hand, manufactured by Agile Robots SE, is a 16-\acs{DoF} anthropomorphic robotic hand composed of five identical, modularly designed fingers with an aluminum open skeleton structure and injection-molded plastic shells.
+The hand weighs 1.5\,kg and has 21~joints total, of which 16 are independently actuated (one coupled joint per finger).
+Each finger has four joints: a metacarpophalangeal (MCP) pitch joint ($0\degree$ to $75\degree$), an MCP yaw joint ($\pm 15\degree$), a proximal interphalangeal (PIP) joint ($0\degree$ to $85\degree$), and a distal interphalangeal (DIP) joint ($0\degree$ to $85\degree$, coupled to PIP).
+The opposing thumb adds a rotation \acs{DoF} with a range of $60\degree$.
+The hand provides 10\,N active fingertip force, $360\degree$/s finger joint velocity, and EtherCAT-based real-time communication at 1\,kHz.
+The thumb rotation joint operates at a significantly lower velocity ($\approx$12\,deg/s), which is a key constraint for sim-to-real transfer (see \cref{sec:sim2real_curriculum}).
+Joint torque and position sensors are integrated in every actuated joint, enabling active compliant control.
+The combined arm--hand system provides 23 actuated \acp{DoF}: 7~arm joints plus 16~hand joints.
+\cref{fig:hardware_platform} shows the physical Agile Hand and the assembled system as rendered in Isaac Sim.
+
+\paragraph{Sensor setup.}
+The platform exposes three classes of sensing, only some of which are realistically available on the physical hardware:
+\begin{itemize}
+    \item \textbf{Proprioception.} Both the \ac{FR3} and the Agile Hand provide joint position and velocity readings on every actuated joint at 1\,kHz over EtherCAT. These signals are available on the real robot and are included in the observation vector for both the teacher and the student (see \cref{sec:obs_space,sec:student_obs}).
+    \item \textbf{Joint torque sensing and contact forces.} The \ac{FR3} integrates a strain-gauge torque sensor in every joint, and the Agile Hand provides per-joint torque feedback through its actuator modules. In simulation, Isaac Lab additionally exposes ground-truth contact wrenches between the hand bodies and any rigid object in the scene. These quantities are available only at training time and are used \emph{exclusively in the privileged critic observation} of the asymmetric actor--critic teacher (\cref{sec:obs_space}); they are never seen by the actor or by the student. The Agile Hand has no dedicated tactile or contact sensors, so this is a deliberate privileged signal that does not transfer to the real platform.
+    \item \textbf{Vision.} On the real robot, two Intel RealSense D405 cameras are mounted in a stereo configuration to provide RGB observations of the workspace. In simulation, the same configuration is reproduced with Isaac Lab's GPU-accelerated \texttt{TiledCamera} primitive, which renders both views inside the training loop (resolution and placement are reported in \cref{sec:student_implementation}). RGB is used only by the student policy via the stereo encoder of \cref{sec:rgb_distillation}; the teacher does not receive image observations.
+\end{itemize}
+The crucial asymmetry is that the contact-force and torque channels are present at training time but absent at deployment, while vision is present at deployment but unused by the teacher. The privileged teacher--student split exists precisely to bridge this asymmetry.
+
+\begin{figure}[htb]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{setup/Agile_Hand_photo}
+        \caption{The physical Agile Hand.}
+        \label{fig:agile_hand_photo}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{setup/Setup_isaacsim}
+        \caption{FR3 + Agile Hand in Isaac Sim.}
+        \label{fig:setup_isaacsim}
+    \end{subfigure}
+    \caption{Hardware platform: (a)~the 16-\acs{DoF} Agile Hand manufactured by Agile Robots SE, and (b)~the combined FR3 arm--hand system as rendered in the Isaac Sim simulation environment.}
+    \label{fig:hardware_platform}
+\end{figure}
+
 \paragraph{Asset integration.}
 The FR3 arm and Agile Hand are combined into a single articulated asset in \ac{USD} format.
 Joint physics parameters (damping, stiffness, effort limits) are configured both in the USD file and via Isaac Lab's actuator API.
@@ -74,50 +124,6 @@ Joint physics parameters (damping, stiffness, effort limits) are configured both
 The fingertip material uses static friction~2.0, dynamic friction~1.5 at nominal conditions, with the global friction combine mode set to \texttt{max} so that the higher rubber fingertip friction dominates at the contact interface.
 Object materials use static and dynamic friction of~1.0.
 These values are subject to \ac{ADR} during training (see \cref{sec:adr_implementation}).
-
-\subsubsection{Hardware Platform}%
-\label{sec:hardware}%
-
-The robotic platform consists of a \ac{FR3} 7-\acs{DoF} arm equipped with an Agile Hand, forming a 23-\acs{DoF} arm--hand system.
-
-\paragraph{Franka Research~3.}
-The \ac{FR3} is a torque-controlled collaborative robot arm with seven revolute joints and integrated joint torque sensors on every axis.
-% PLACEHOLDER: Add FR3 payload, reach, repeatability specs. Cite Franka Emika datasheet.
-The arm provides Cartesian impedance control capabilities, though in this work all joints are controlled via position targets with simulated PD controllers.
-The factory torque limits are 87\,Nm for joints~1--4 and 12\,Nm for joints~5--7.
-
-\paragraph{Agile Hand.}
-The Agile Hand, manufactured by Agile Robots SE, is a 16-\acs{DoF} anthropomorphic robotic hand composed of five identical, modularly designed fingers with an aluminum open skeleton structure and injection-molded plastic shells.
-The hand weighs 1.5\,kg and has 21~joints total, of which 16 are independently actuated (one coupled joint per finger).
-Each finger has four joints: a metacarpophalangeal (MCP) pitch joint ($0\degree$ to $75\degree$), an MCP yaw joint ($\pm 15\degree$), a proximal interphalangeal (PIP) joint ($0\degree$ to $85\degree$), and a distal interphalangeal (DIP) joint ($0\degree$ to $85\degree$, coupled to PIP).
-The opposing thumb adds a rotation \acs{DoF} with a range of $60\degree$.
-The hand provides 10\,N active fingertip force, $360\degree$/s finger joint velocity, and EtherCAT-based real-time communication at 1\,kHz.
-The thumb rotation joint operates at a significantly lower velocity ($\approx$12\,deg/s), which is a key constraint for sim-to-real transfer (see \cref{sec:sim2real_curriculum}).
-Joint torque and position sensors are integrated in every actuated joint, enabling active compliant control.
-The combined arm--hand system provides 23 actuated \acp{DoF}: 7~arm joints plus 16~hand joints.
-\cref{fig:hardware_platform} shows the physical Agile Hand and the assembled system as rendered in Isaac Sim.
-
-\paragraph{Sensor setup.}
-% PLACEHOLDER: Describe Intel RealSense D405 — resolution, depth range, mounting position (wrist-mounted or external), frame rate. In simulation, stereo RGB rendering is used via Isaac Lab's TiledCamera at 320x240 resolution.
-
-\begin{figure}[htb]
-    \centering
-    \begin{subfigure}[b]{0.45\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{setup/Agile_Hand_photo}
-        \caption{The physical Agile Hand.}
-        \label{fig:agile_hand_photo}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.45\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{setup/Setup_isaacsim}
-        \caption{FR3 + Agile Hand in Isaac Sim.}
-        \label{fig:setup_isaacsim}
-    \end{subfigure}
-    \caption{Hardware platform: (a)~the 16-\acs{DoF} Agile Hand manufactured by Agile Robots SE, and (b)~the combined FR3 arm--hand system as rendered in the Isaac Sim simulation environment.}
-    \label{fig:hardware_platform}
-\end{figure}
 
 \subsubsection{Object Set}%
 \label{sec:object_set}%
@@ -211,14 +217,38 @@ Each episode has a maximum duration of 10\,s (600 steps at 60\,Hz) for teacher t
 At the start of each episode, the object is placed on a table surface with randomized position and orientation, and the robot is initialized to a fixed home configuration.
 The arm is initialized above the object in a top-down approach pose to facilitate contact.
 
-An episode terminates early if any of the following conditions are met:
-\begin{itemize}
-    \item The object leaves the workspace bounds (\texttt{object\_out\_of\_bound}).
-    \item The hand moves too far from the object (\texttt{hand\_too\_far}).
-    \item A harmful collision is detected (\texttt{harmful\_collision}).
-    \item The palm orientation flips beyond a threshold (\texttt{palm\_flipped}).
-\end{itemize}
-Early terminations incur a penalty of $-1.0$ on the reward to discourage the policy from exploiting short episodes.
+Formally, episodes terminate at
+%
+\begin{equation}\label{eq:termination}
+    T = \min\left\{t \;\middle|\; \mathbb{I}_{\text{unsafe}}(s_t) = 1 \;\lor\; t \geq T_{\max}\right\},
+\end{equation}
+%
+where $T_{\max} = 10\,\mathrm{s}$ and $\mathbb{I}_{\text{unsafe}}$ is the indicator of any of the early-termination conditions summarized in \cref{tab:terminations}.
+These conditions cover both task failures (object escape, hand drift) and unsafe robot states (palm flip, collisions with the table, numerical instability), and are treated as unsafe events for both teacher training and, subsequently, SafeDAgger's intervention logic during distillation.
+Early terminations triggered before any object contact has occurred incur an additional penalty of $-1.0$ on the cumulative reward, discouraging the policy from exploiting short episodes to escape negative shaping.
+
+\begin{table}[htb]
+    \centering
+    \caption{Episode termination conditions. All early terminations mark the visited state as unsafe; those listed as penalty-eligible additionally trigger the $-1.0$ early-termination penalty when they occur before any object contact.}
+    \label{tab:terminations}
+    \small
+    \begin{tabular}{lp{7.5cm}c}
+        \toprule
+        \textbf{Condition} & \textbf{Trigger} & \textbf{Penalty} \\
+        \midrule
+        \texttt{object\_escape\_xy}    & Object leaves the $\pm0.25\,\mathrm{m}\times\pm0.4\,\mathrm{m}$ workspace rectangle & \checkmark \\
+        \texttt{object\_too\_low}      & Object falls below the table surface ($z < 0.2\,\mathrm{m}$) & \checkmark \\
+        \texttt{hand\_too\_far}        & Hand workspace body leaves a $0.35\,\mathrm{m}$-inflated workspace box & \checkmark \\
+        \texttt{hand\_too\_close}      & Any fingertip or palm comes within $1\,\mathrm{cm}$ of the table surface & -- \\
+        \texttt{palm\_flip}            & Palm direction deviates more than $108^{\circ}$ from the target down-direction & \checkmark \\
+        \texttt{arm\_table\_contact}   & Any arm link (\texttt{fr3\_link0}--\texttt{fr3\_link5}) contacts the table & -- \\
+        \texttt{hand\_vel\_explosion}  & Any finger joint velocity exceeds $50\,\mathrm{rad/s}$ & -- \\
+        \texttt{robot\_unstable}       & NaN or Inf detected in joint positions or velocities & -- \\
+        \midrule
+        \texttt{timeout}               & Episode reaches $T_{\max} = 10\,\mathrm{s}$ (600 steps at $60\,\mathrm{Hz}$) & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \begin{figure}[htb]
     \centering
@@ -270,24 +300,35 @@ No geometric fabrics or motion primitives are used; the policy directly commands
 \subsubsection{Reward Design}%
 \label{sec:reward_implementation}%
 
-The reward function follows the structure defined in \cref{eq:reward}.
-\cref{tab:reward_terms} lists all reward terms, their formulations, and weights used in the final training configuration.
+The reward function follows the structure defined in \cref{eq:reward} and decomposes into three groups: \emph{shaping} terms that guide the arm and hand toward a grasp-ready configuration, \emph{task} terms that reward stable contact, lifting, and goal reaching, and \emph{regularization} penalties that discourage jerky or unstable control.
+\cref{tab:reward_terms} lists every term used in the final teacher training configuration, along with its purpose and the weight (or weight range, when the term is also subject to \ac{ADR}, see \cref{sec:adr_implementation}).
 
 \begin{table}[htb]
     \centering
-    \caption{Reward terms and weights for teacher training.}
+    \caption{Reward terms used for teacher policy training. Weights marked with a star are also modulated by \ac{ADR} over the course of training; the listed range gives the endpoints.}
     \label{tab:reward_terms}
-    \begin{tabular}{llc}
+    \small
+    \begin{tabular}{llp{6.5cm}c}
         \toprule
-        \textbf{Term} & \textbf{Formulation} & \textbf{Weight} \\
+        \textbf{Group} & \textbf{Term} & \textbf{Purpose} & \textbf{Weight} \\
         \midrule
-        Hand-to-object distance & $\exp(-\kappa \cdot \|p_{\text{hand}} - p_{\text{obj}}\|)$ & 4.0 \\
-        Palm direction alignment & $\max(0, \hat{n}_{\text{palm}} \cdot \hat{d}_{\text{obj}})$ & 0.5 \\
-        Hand-object contact & $\min(n_{\text{contacts}}, n_{\max}) / n_{\max}$ & 8.0 \\
-        Good grasp & $\mathbb{1}[\text{contact mask}] \cdot \text{grasp quality}$ & 6.0 \\
-        Object-to-goal (lift) & $w_{\text{lift}} \cdot \exp(-\kappa_l \cdot |z_{\text{obj}} - z_{\text{goal}}|) \cdot \mathbb{1}[\text{contact}]$ & 1.0 \\
-        Finger curl regularization & $-\|\boldsymbol{q}_{\text{fingers}} - \boldsymbol{q}_{\text{curl}}\|^2$ & 0.5 \\
-        Action rate penalty & $-\|a_t - a_{t-1}\|^2$ (fingers $\times 2.5$) & 0.1 \\
+        \multirow{3}{*}{Shaping}
+            & \texttt{hand\_to\_object}  & Encourages the hand to approach the object centroid & $4.0$ \\
+            & \texttt{palm\_align}       & Aligns the palm normal with the palm-down target direction & $0.7$ \\
+            & \texttt{finger\_curl}      & Biases fingers toward a grasp-ready curl configuration & $-0.3 \to -0.8^{\star}$ \\
+        \midrule
+        \multirow{6}{*}{Task}
+            & \texttt{contact}           & Rewards hand-object contact after the grasp phase begins & $3.0$ \\
+            & \texttt{good\_grasp}       & Binary bonus for thumb plus at least one other finger in contact & $3.0$ \\
+            & \texttt{lift}              & Rewards vertical lifting of the object after stable contact & $40 \to 30^{\star}$ \\
+            & \texttt{object\_to\_goal}  & Rewards moving the grasped object toward a goal pose & $40.0$ \\
+            & \texttt{episode\_length}   & Small time reward while the hand stays within a proximity gate & $0.005$ \\
+            & \texttt{success\_bonus}    & Bonus for entering and remaining in the goal region & $20.0$ \\
+        \midrule
+        \multirow{3}{*}{Regularization}
+            & \texttt{action\_rate}      & Penalizes large joint action deltas (hand joints weighted $1.5\times$) & $-0.01$ \\
+            & \texttt{joint\_velocity}   & Penalizes high joint velocities (hand joints weighted $3\times$) & $-5\cdot 10^{-4}$ \\
+            & \texttt{early\_term}       & Penalty applied only to early terminations without prior contact & $-1.0$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -346,7 +387,7 @@ The critic has an identical architecture but receives the larger critic observat
 Training is performed headless (no rendering) on a single NVIDIA GPU.
 % PLACEHOLDER: Specify GPU model (e.g., A100, RTX 4090) and wall-clock training time.
 
-\subsubsection{Adaptive Domain Randomization}%
+\subsubsection{Automatic Domain Randomization}%
 \label{sec:adr_implementation}%
 
 The \ac{ADR} curriculum follows the formulation in \cref{sec:adr_formulation} with $N_{\text{max}} = 50$ increments and a success threshold $\tau_{\text{ADR}} = 0.4$.
@@ -354,7 +395,7 @@ The \ac{ADR} curriculum follows the formulation in \cref{sec:adr_formulation} wi
 
 \begin{table}[htb]
     \centering
-    \caption{Adaptive Domain Randomization parameters.}
+    \caption{Automatic Domain Randomization parameters.}
     \label{tab:adr_params}
     \begin{tabular}{lcc}
         \toprule
@@ -541,6 +582,8 @@ This finding motivated training the sim-to-real teacher from scratch (run~1d) ra
 \subsection{Safety Threshold Sensitivity}%
 \label{sec:ablation_threshold}%
 
+\todo[inline,color=yellow]{TODO: Add a figure showing the SafeDAgger intervention rate $\beta_{\text{safe}}$ over the course of distillation training for the different $\delta$ runs (1c, 3a, 5a, 6a, 7a, 8a, 9a). One curve per run, x-axis = training iteration, y-axis = intervention fraction. Pull from the WandB / tensorboard logs for each run.}
+
 A notable gap in the original SafeDAgger paper~\cite{Zhang2016} is the lack of a systematic sensitivity analysis for the safety threshold $\delta$.
 Zhang and Cho selected a single threshold ($\tau = 0.0025$ in their steering-angle domain) based on the error distribution of the initial supervised policy and did not vary it.
 This work provides an implicit threshold sweep through runs conducted with different $\delta$ values: 0.5 (runs~1c, 3a, 5a), 0.665 (run~6a, scaled by $\sqrt{23/13}$ for the 23-dimensional action space), 2.0 (runs~8a, 9a), and 3.0 (run~7a).
@@ -622,15 +665,9 @@ Training proceeded in two phases:
     \item \textbf{Scaled training (512 envs, run~1p):} Resumed from the best checkpoint of the initial phase with 512~environments ($\approx$39~envs per object), yielding stable gradient estimates and consistent learning progress.
 \end{enumerate}
 
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.85\textwidth]{plots/teacher_training_curve}
-    \caption{Teacher policy training: mean episode reward (blue, left axis) and ADR level (orange, right axis) over training epochs. The first ADR increment occurred at epoch~8850. Reward decreases at higher ADR levels reflect harder physics conditions, not policy degradation.}
-    \label{fig:teacher_training_curve}
-\end{figure}
-
 The policy reached ADR level~5 by epoch~11{,}124, demonstrating reliable grasping and lifting across all 13 objects.
-A subsequent extended run with 1024 environments reached ADR level~19 after 20{,}000 epochs, producing a stronger teacher for distillation.
+A subsequent extended run with 1024 environments reached ADR level~19 after 20{,}000 epochs; this checkpoint is referred to as \emph{teacher~10} throughout the rest of this chapter.
+A separate sim-to-real-aware curriculum (\cref{sec:sim2real_curriculum}) produced \emph{teacher~11}, which only reached ADR level~14 but with a substantially safer actuator regime and is the teacher used for the main distillation experiments.
 
 \subsubsection{Physics Stability Challenges}%
 \label{sec:physics_challenges}%
@@ -785,7 +822,7 @@ A critical one-hot index mapping bug discovered in earlier runs was fixed, ensur
 \cref{fig:run9_lift_success} shows the normalized lift success over training, while \cref{fig:run9_unsafe_rate} shows the real unsafe episode rate (excluding physics instability artifacts).
 SafeDAgger achieves higher normalized lift success ($\sim$85--90\% of teacher performance vs.\ $\sim$70--80\% for DAgger) and a substantially lower real unsafe episode rate ($\sim$15--20\% vs.\ $\sim$30--40\%).
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -815,14 +852,14 @@ The remaining real-world-relevant failures are primarily \texttt{harmful\_collis
 These plots decompose the unsafe episodes into four categories (object out of bounds, harmful collision, palm flip, and physics instability) for each evaluation object.
 SafeDAgger exhibits lower harmful collision rates and faster reduction of collision-related failures during training, particularly on objects where DAgger's unrestricted exploration causes persistent contact with the table surface.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_safedagger}
     \caption{Per-object failure mode breakdown over distillation iterations for SafeDAgger (run~9a). Each subplot shows one evaluation object, with failure categories: object out of bounds (orange), harmful collision (gray), palm flip (purple), and physics instability (red).}
     \label{fig:per_object_failure_safedagger}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_dagger}
     \caption{Per-object failure mode breakdown over distillation iterations for DAgger (run~9b). Compared to SafeDAgger (\cref{fig:per_object_failure_safedagger}), DAgger shows higher and more persistent harmful collision rates across most objects.}
@@ -836,7 +873,7 @@ The SafeDAgger intervention rate $\beta_{\text{safe}}$ decays rapidly in run~9 a
 \cref{fig:intervention_rate} shows that $\beta_{\text{safe}}$ drops from $\sim$0.7 at initialization to $\sim$0.1 within 20k iterations, indicating the student acts autonomously in $\sim$90\% of environments for the majority of training.
 This rapid decay confirms that teacher~11's cleaner demonstrations enable fast student autonomy.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth]{plots/run9/intervention_rate}
     \caption{SafeDAgger intervention rate $\beta_{\text{safe}}$ over distillation iterations (run~9a). The rate decays rapidly to $\sim$0.1, indicating the student acts autonomously in $\sim$90\% of environments. DAgger (run~9b) has no intervention mechanism ($\beta = 0$ by definition).}
@@ -853,7 +890,7 @@ To identify which object categories benefit most from SafeDAgger's intervention 
 Performance varies substantially across objects: compact shapes such as the elephant toy and mario achieve high lift success ($>$80\%) for both methods, while thin or asymmetric objects such as the basketball shoe show larger gaps.
 \cref{fig:per_object_unsafe_eval} shows the corresponding real unsafe episode rates, where SafeDAgger consistently exhibits lower rates across most objects.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
@@ -876,14 +913,14 @@ Performance varies substantially across objects: compact shapes such as the elep
 These reveal that the performance gap between SafeDAgger and DAgger is not uniform: on objects such as the teddy bear and milk pot, SafeDAgger converges to noticeably higher lift success, while on others (e.g., turtle candle holder) both methods perform similarly.
 The per-object unsafe rate curves show that SafeDAgger achieves consistently lower collision rates on most objects, with the largest safety margins on objects where DAgger produces aggressive approach behaviors.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_lifted_head_to_head}
     \caption{Per-object lift success over distillation iterations for SafeDAgger (blue) and DAgger (orange). Each subplot shows one of the 8 evaluation objects from run~9.}
     \label{fig:per_object_lift_h2h}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_unsafe_episode_head_to_head}
     \caption{Per-object real unsafe episode rate (excl.\ physics instability) over distillation iterations for SafeDAgger (blue) and DAgger (orange). SafeDAgger consistently achieves lower unsafe rates on most objects.}
@@ -933,7 +970,7 @@ The asymmetric degradation, however, provides direct evidence for the SafeDAgger
     \end{tabular}
 \end{table}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \begin{minipage}{0.49\textwidth}
         \centering
@@ -949,7 +986,7 @@ The asymmetric degradation, however, provides direct evidence for the SafeDAgger
     \end{minipage}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/comparisons/run10b_vs_run11_per_object_lift}
     \caption{Per-object lift success at standalone evaluation: run~10b (SafeDAgger, ADR~0, 32 envs) versus run~11a (SafeDAgger, ADR~5) and run~11b (DAgger, ADR~5). Enabling \acs{ADR}~5 during distillation hurts both methods on every object, but the gap to the ADR-0 best is consistently smaller for SafeDAgger.}

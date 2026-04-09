@@ -2,4 +2,120 @@
 \chapter{Discussion and Conclusion}%
 \label{ch:conclusion}%
 
-% TODO: Content to be written
+This chapter interprets the experimental results of \cref{ch:experiments} in the context of the research questions posed in \cref{ch:introduction}, discusses the limitations of the present study, and outlines how the findings shape the direction of the subsequent master's thesis.
+
+%% =========================================================================
+\section{Discussion}%
+\label{sec:discussion}%
+
+\subsection{Revisiting the Research Questions}%
+\label{sec:rq_revisit}%
+
+The thesis set out to answer three questions. The experimental evidence supports the following answers.
+
+\paragraph{RQ1: Can a privileged RL teacher for dexterous grasping be trained in Isaac Lab with a custom dexterous hand asset?}
+Yes. The teacher policy presented in \cref{sec:teacher_results} reaches a grasp success rate of 85.8\,\% on the held-out object set at an unsafe-episode rate of 12.1\,\% under the sim-to-real-aware ADR-14 schedule, and 96.3\,\% under the more permissive ADR-19 setting.
+The path to this result was, however, not straightforward.
+As discussed in \cref{sec:results_summary}, the dominant difficulty was not the reward shaping or the PPO hyperparameters but the physics integration of the Agile Hand asset itself.
+Effort limits, joint damping, and contact stiffness had to be tuned iteratively to prevent the policy from converging on contact-avoidance strategies that exploit numerical artifacts of the rigid-body solver instead of producing physically plausible grasps.
+This observation matches anecdotal reports from other custom-asset Isaac Lab projects and reinforces the view that, for novel hands, the simulation engineering effort is comparable to the learning algorithm engineering effort.
+
+\paragraph{RQ2: Does SafeDAgger improve training safety compared to vanilla DAgger?}
+Yes, but the magnitude of the improvement depends on the difficulty of the training distribution.
+At evaluation time, SafeDAgger and DAgger reach almost identical real unsafe-episode rates (30.2\,\% vs.\ 32.7\,\%) on the run~9 configuration, which suggests that, given enough teacher queries, both algorithms converge to similarly safe students.
+The picture is different \emph{during} training, where SafeDAgger maintains a real unsafe-episode rate of roughly 15--20\,\% throughout the run while DAgger fluctuates between 30\,\% and 40\,\% (\cref{fig:run9_unsafe_rate}).
+For a hypothetical online deployment, in which each unsafe rollout corresponds to a real-world hardware event rather than a simulation reset, this difference would translate into roughly half as many damaging episodes for the same number of training steps.
+Under the harder ADR-randomized distillation of runs~10--11, the gap widens further: SafeDAgger degrades by $-15.3$ percentage points relative to its run~9 baseline, whereas DAgger degrades by $-22.9$ percentage points.
+The interpretation is that the value of safety-aware intervention grows with the harshness of the training distribution, because in those regimes the student is much more likely to drift into states that the teacher can still recover from but that the student cannot.
+
+\paragraph{RQ3: What is the trade-off between safety and task performance?}
+At least in the configurations explored here, the trade-off is essentially absent.
+SafeDAgger reaches 72.7\,\% grasp success against DAgger's 71.7\,\% in the matched run~9 setting, and up to 79.2\,\% in the strongest configuration (run~10b), corresponding to roughly 92\,\% of the teacher~11 ceiling.
+SafeDAgger therefore matches or slightly exceeds DAgger on the task metric while strictly improving on the safety metric, which means that, within the regime studied, it is Pareto-dominant and there is no reason to prefer vanilla DAgger.
+This is a stronger claim than the original SafeDAgger paper makes for autonomous driving, where the algorithm is reported to recover most but not necessarily all of the DAgger task performance, and is consistent with the intuition that dexterous grasping has a much larger fraction of "trivially safe" states (free-space approach, wrist alignment) on which the safety filter incurs zero cost.
+
+\subsection{Why Teacher Quality Dominates the Distillation Algorithm}%
+\label{sec:teacher_dominates}%
+
+A finding that was not anticipated at the start of the project, but that emerged consistently across all distillation runs, is that the choice of \emph{teacher} matters more than the choice of \emph{distillation algorithm}.
+Students trained on top of teacher~11 (sim-to-real-aware, ADR-14) consistently outperformed students trained on teacher~10 (more aggressive ADR-19), even though teacher~10 has a higher raw grasp success rate in privileged evaluation.
+The reason, supported by qualitative inspection of the rollouts, is that teacher~10 frequently produces actions that exploit privileged contact information in ways the student cannot reproduce from RGB alone, resulting in demonstrations that are accurate in the imitation-learning sense but uninformative for a vision-based learner.
+Teacher~11, by contrast, was trained under a curriculum that already approximates the deployment actuator dynamics, and its action distribution sits closer to what the student can plausibly reach.
+
+This observation has a practical consequence that goes beyond the present study: when designing a teacher--student pipeline for dexterous manipulation, it is more important to train a teacher whose action distribution is \emph{reachable from realistic observations} than to maximize the teacher's privileged success rate.
+The same conclusion is implicit in DextrAH-RGB and DextrAH-G but, to the best of the author's knowledge, has not been stated explicitly as a design principle.
+
+\subsection{The Role of Implementation Details}%
+\label{sec:impl_details}%
+
+A second, more sobering finding is the magnitude of the effect of low-level implementation details.
+The single largest jump in distillation performance during the entire project came not from changing the algorithm but from fixing a one-hot index bug in the teacher--student object mapping (run~9), which produced $+31$ percentage points for SafeDAgger and $+16.5$ for DAgger.
+Similarly, the safety-threshold ablation in \cref{sec:ablations} shows that SafeDAgger is sensitive, though not fragile, to the value of $\delta$, with $\delta = 2.0$ producing markedly cleaner intervention-rate decay than either $0.5$ or $3.0$.
+These two observations together temper the algorithmic conclusions: the headline numbers in \cref{sec:distillation_results} should be read as a comparison between two well-tuned, bug-free implementations of DAgger and SafeDAgger on this specific platform, not as a universal claim about the two algorithms.
+
+%% =========================================================================
+\section{Limitations}%
+\label{sec:limitations}%
+
+The present study has several limitations that constrain the generality of its conclusions and that motivate the work planned for the master's thesis.
+
+\paragraph{Simulation only.}
+All teacher and student policies were trained and evaluated in Isaac Lab.
+No real-robot rollouts were performed, and no system identification was carried out on the physical Agile Hand or the FR3.
+Although the sim-to-real-aware ADR schedule and the actuator regime of teacher~11 are designed to narrow the sim-to-real gap, the actual gap on the physical platform is unknown.
+The unsafe-episode rates reported in \cref{sec:distillation_results} are simulator-defined and should not be interpreted as predictions of hardware damage rates.
+
+\paragraph{Single hand, single arm, single task.}
+All experiments use the Agile Hand on the FR3 and target a single task (top-down grasping of rigid objects from a flat surface).
+The conclusions about teacher quality dominance and SafeDAgger's graceful degradation may or may not transfer to other hands (e.g., the Allegro or Shadow hands), other arms, or tasks that involve in-hand reorientation, regrasping, or tool use.
+
+\paragraph{Direct action-disagreement gating instead of a learned safety classifier.}
+The SafeDAgger variant used in this thesis (\cref{sec:safedagger}) gates teacher intervention on the L2 distance between the student's proposed action and the teacher's action, rather than on a learned binary safety classifier as in the original Zhang and Cho formulation.
+This choice is justified by the fact that the teacher is queried at every step in the asymmetric actor--critic setting, which makes a separate classifier redundant.
+It does, however, mean that the safety signal in this work is purely action-based and does not incorporate value-based failure prediction as in DexSafeDagger.
+Whether a learned classifier or a Q-value-based gate would yield additional gains on this platform remains an open question.
+
+\paragraph{Limited scale.}
+The teacher was trained on a curated object set of moderate size, and the number of distillation runs that could be executed within the semester budget was limited.
+Several quantities of interest, in particular wall-clock training time on different GPU hardware and the variance of the headline metrics across random seeds, are reported only as point estimates rather than as distributions, and the corresponding placeholders in \cref{ch:experiments} reflect this.
+
+\paragraph{No fabric-guided policies.}
+As noted in \cref{ch:introduction}, the original DextrAH-RGB pipeline relies on fabric-guided policies to produce smooth, kinematically consistent action targets.
+This component was deliberately omitted from the present work because of its implementation complexity within the available time, and the standard PPO actor was used instead.
+Adding fabrics would likely improve the smoothness of the teacher's action distribution and, by the argument of \cref{sec:teacher_dominates}, indirectly improve distillation quality.
+
+%% =========================================================================
+\section{Conclusion}%
+\label{sec:conclusion}%
+
+This semester thesis investigated whether a safety-aware variant of DAgger can replace the standard imitation algorithm in the privileged teacher--student pipeline for dexterous grasping, without sacrificing task performance.
+The starting point was a custom Isaac Lab environment for the 23-degree-of-freedom Agile Hand and Franka Research~3 platform, in which a privileged RL teacher was trained with PPO under automatic domain randomization to a grasp success rate of 85.8\,\% at an unsafe-episode rate of 12.1\,\%.
+On top of this teacher, vanilla DAgger and SafeDAgger were used to distill a vision-based student that operates from a stereo RGB encoder.
+
+The two distillation algorithms reach comparable grasp success rates of 71.7\,\% and 72.7\,\% respectively, and up to 79.2\,\% in the strongest SafeDAgger configuration, recovering between 85\,\% and 92\,\% of the privileged teacher ceiling.
+SafeDAgger maintains a roughly twofold lower unsafe-episode rate during training and degrades more gracefully than DAgger when the distillation distribution is hardened with additional ADR.
+Together, these results support the central hypothesis of the thesis: in the regime studied, a safety-aware distillation algorithm matches the task performance of vanilla DAgger while strictly improving training-time safety, and the safety advantage grows with the harshness of the training distribution.
+The most surprising finding of the project was orthogonal to the algorithmic comparison and concerns the dominant role of teacher quality and low-level implementation correctness, both of which produced performance shifts substantially larger than the gap between the two distillation algorithms.
+
+%% =========================================================================
+\section{Future Work}%
+\label{sec:future_work}%
+
+The semester thesis lays the foundation for the master's thesis, in which the dexterous grasping pipeline is to be extended along three axes.
+
+\paragraph{Real-robot validation.}
+The most important next step is to evaluate the SafeDAgger student on the physical FR3 and Agile Hand, both to measure the true sim-to-real gap of the current pipeline and to test the operational hypothesis that motivated the safety-aware distillation in the first place: that the in-training unsafe-episode reduction observed in simulation translates into fewer hardware-damaging events on the real platform.
+This step also requires a basic system identification of the Agile Hand actuators, which was deliberately deferred in the semester thesis (\cref{sec:limitations}).
+
+\paragraph{Beyond grasping: finger-gaiting and fine tool use.}
+The original 12-month plan envisioned a three-stage pipeline of grasping, finger-gaiting, and thread start.
+With the grasping stage now in place, the master's thesis will tackle finger-gaiting, defined as the controlled release and re-establishment of finger contacts to reorient an object in-hand, and thereafter progress towards fine tool use, in particular screwdriving.
+Both stages place much harder demands on the safety filter, since unsafe contact transitions are easier to induce and harder to recover from than during a static power grasp, which makes them a more discriminating test of SafeDAgger versus DAgger than the present study.
+
+\paragraph{Stronger safety signals.}
+The action-disagreement gate used in this thesis is the simplest reasonable implementation of safety-aware distillation.
+Two extensions are natural candidates for the master's thesis: (i)~replacing the L2 gate with a learned binary safety classifier in the spirit of the original SafeDAgger formulation, and (ii)~incorporating Q-value-based failure prediction as proposed in DexSafeDagger~\cite{ChiZhang2026}, which couples the safety decision to the critic of the privileged teacher and is therefore expected to be more selective in identifying genuinely unsafe states than action-distance heuristics.
+
+\paragraph{Closing the loop with fabric-guided policies.}
+Finally, given the central role that teacher action smoothness played in the present results, integrating geometric fabrics on top of the PPO teacher is a promising avenue for further closing the gap between student and teacher performance, and would also bring the pipeline back into closer alignment with the published DextrAH-RGB and DextrAH-G systems.
+%

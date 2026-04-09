@@ -20,9 +20,22 @@
 \usepackage{algorithm}%
 \usepackage{algpseudocode}%
 \usepackage{booktabs}%
+\usepackage{multirow}%
 \usepackage{subcaption}%
+\usepackage[textsize=small]{todonotes}%
 \usepackage{float}%              Provides [H] placement to keep figures in place
 \usepackage[section]{placeins}%  Prevent floats from drifting past section boundaries
+%
+% Loosen float-placement parameters so [htb] figures sit close to their reference
+% instead of being deferred. The LaTeX defaults are stingy (only ~70% of a page may
+% be floats), which causes figures to drift several pages away from the text.
+\renewcommand{\topfraction}{0.95}%
+\renewcommand{\bottomfraction}{0.85}%
+\renewcommand{\textfraction}{0.07}%
+\renewcommand{\floatpagefraction}{0.75}%
+\setcounter{topnumber}{3}%
+\setcounter{bottomnumber}{2}%
+\setcounter{totalnumber}{4}%
 \usepackage[printonlyused]{acronym}% Abbreviation list
 \usetikzlibrary{positioning, fit, backgrounds, shapes.geometric}% For pipeline diagram
 %
@@ -34,17 +47,23 @@
 % Define additional commands
 \newcommand{\code}[1]{\texttt{#1}}%
 \newcommand{\degree}[0]{^\circ}%
-\definecolor{safedaggerhl}{RGB}{0,100,180}% Highlight color for SafeDAgger-specific lines
+\definecolor{safedaggerhl}{RGB}{0,100,180}% Highlight color for Safe\mbox{DAgger}-specific lines
 \newcommand{\hlsafe}[1]{\textcolor{safedaggerhl}{#1}}% Shorthand for highlighting
 %\left( \right)
 %
-% Add Agile Robots logo underneath TUM logo on title page
+% Add Agile Robots logo underneath TUM logo + collaboration note under TUM header
 \let\origAIRstudentthesisTitlePageFrontPage\AIRstudentthesisTitlePageFrontPage
 \renewcommand{\AIRstudentthesisTitlePageFrontPage}[8]{%
     \origAIRstudentthesisTitlePageFrontPage{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}%
-    \AIRlayoutPutAtNorthEast{2cm}{2.8cm}{\includegraphics[width=1.9cm]{Agile_Robots_logo}}%
+    % Agile Robots logo directly underneath the TUM logo (top-right)
+    \AIRlayoutPutAtNorthEast{2cm}{3.6cm}{\includegraphics[width=1.9cm]{Agile_Robots_logo}}%
+    % "In collaboration with Agile Robots SE" aligned with the bottom of the Agile Robots logo
+    % Font matches the TUM header (Helvetica / phv, TUMBlue)
+    \AIRlayoutPutAtNorthWest{2.5cm}{5.5cm}{\fontfamily{phv}\fontsize{10pt}{12pt}\selectfont In collaboration with Agile Robots SE}%
 }%
 %
+% Override default school (CIT) with School of Engineering and Design (MW)
+\renewcommand{\AIRlangSchool}{\AIRlangSchoolMW}%
 \begin{document}%
 % Titlepage
 % ---------
@@ -53,7 +72,7 @@
 %\AIRstudentthesisTitlePageCustomDiplomarbeit{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 %\AIRstudentthesisTitlePageCustomBachelorsThesis{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 
-\AIRstudentthesisTitlePageCustomSemesterThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Chi Zhang, M.Sc.}{\AIRutilsDate{15}{04}{2025}}%
+\AIRstudentthesisTitlePageCustomSemesterThesis{Trainingssicherheit bei der Destillation privilegierter Strategien für geschicktes Greifen: Ein Vergleich von \mbox{DAgger} und Safe\mbox{DAgger}}{On the Training-Time Safety of Privileged \mbox{Policy} Distillation for Dexterous Grasping: A \mbox{DAgger} vs.\ Safe\mbox{DAgger} Study}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Chi Zhang, M.Sc.}{\AIRutilsDate{15}{04}{2026}}%
 
 %\AIRstudentthesisTitlePageCustomIDP{German Title}{English Title}{\AIRlangFieldOfStudyRoboticsCognitionIntelligence}{Martin Mustermann}{}{\AIRnamesProfKnoll}{Musterbetreuer, M.Sc.}{\AIRutilsDate{1}{1}{2020}}%
 %\AIRstudentthesisTitlePageCustomMastersThesis{German Title}{English Title}{\AIRlangFieldOfStudyMechanicalEngineering}{Carsten Oertel}{}{\AIRnamesProfKnoll}{Zhang Chi, M.Sc.}{\AIRutilsDate{15}{04}{2026}}%
@@ -108,6 +127,7 @@ The author gratefully acknowledges Agile Robots SE for their support, in particu
     \acro{CNN}{Convolutional Neural Network}
     \acro{MLP}{Multilayer Perceptron}
     \acro{LSTM}{Long Short-Term Memory}
+    \acro{KL}{Kullback--Leibler}
     \acro{ROS2}{Robot Operating System 2}
     \acro{USD}{Universal Scene Description}
     \acro{URDF}{Unified Robot Description Format}
