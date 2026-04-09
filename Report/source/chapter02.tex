@@ -104,7 +104,14 @@ Two broad strategies exist for closing this gap, and modern dexterous manipulati
 \label{subsec:dr}%
 
 The most widely adopted strategy is \ac{DR}, in which simulation parameters such as friction, mass, lighting, sensor noise, and actuator delays are varied across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
-The underlying hypothesis is that if the real world falls within the distribution of randomized simulations, the policy will generalize at deployment time without any fine-tuning.
+The underlying hypothesis, illustrated in \cref{fig:domain_randomization}, is that if the real world falls within the distribution of randomized simulations, the policy will generalize at deployment time without any fine-tuning.
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.55\textwidth]{pics/domain_randomization_amplified}
+    \caption{Illustration of domain randomization. A single calibrated simulation (red circle) may not match reality (green triangle), but a sufficiently wide distribution of randomized simulations (dashed ellipses) can encompass the real-world conditions, enabling zero-shot transfer. Figure adapted from~\cite{Tobin2017}.}
+    \label{fig:domain_randomization}
+\end{figure}
 Peng et al.~\cite{Peng2018} demonstrated zero-shot sim-to-real transfer of locomotion and manipulation policies through dynamics randomization, and the same idea underlies the in-hand reorientation results of Andrychowicz et al.~\cite{Andrychowicz2020}.
 
 A drawback of plain \ac{DR} is that the randomization ranges must be chosen by hand: too narrow, and the real world falls outside the training distribution; too wide, and the task becomes so hard that learning fails.
@@ -118,10 +125,10 @@ Handa et al.~\cite{Handa2024} showed in DeXtreme that vectorized \ac{ADR} on top
 An alternative to randomizing over many possible worlds is to identify the parameters of the actual world.
 \emph{System identification} fits a simulation model to data collected on the real robot, producing a single best-fit simulator instead of a distribution.
 Lin et al.~\cite{Lin2025} recently introduced an automated real-to-sim tuning module that uses less than four minutes of real-world data to calibrate simulator parameters, substantially reducing the sim-to-real gap for bimanual dexterous manipulation on humanoid robots.
-The current consensus in the dexterous-manipulation literature is that hybrid approaches, in which system identification fixes the gross parameters and moderate domain randomization absorbs the residual uncertainty, generalize better than either extreme on its own; this thesis follows the same hybrid philosophy.
+The current consensus in the dexterous-manipulation literature is that hybrid approaches, in which system identification fixes the gross parameters and moderate domain randomization absorbs the residual uncertainty, generalize better than either extreme on its own.
 
-The simulator itself is also a non-trivial design choice.
-Isaac Gym~\cite{Makoviychuk2021} introduced end-to-end GPU rigid-body and articulated-body simulation, eliminating the CPU--GPU bottleneck that limited earlier RL pipelines.
-Isaac Lab (formerly Orbit~\cite{Mittal2023}) builds on Isaac Sim and exposes two environment design paradigms, a manager-based API and a direct API.
-This thesis uses the direct API (\texttt{DirectRLEnv}), which provides full transparency over the simulation loop and matches the paradigm used in the published DextrAH-RGB implementation.
+This thesis does not perform system identification of its own.
+For the \ac{FR3} arm, the recommended joint actuator models and link inertias provided by the manufacturer are used as-is; these values are presumably the result of an identification procedure carried out by the vendor, but this is not verified here.
+For the Agile Hand, no identification was performed at all: the URDF inertias and joint friction parameters are taken directly from the vendor description.
+The residual uncertainty introduced by these choices is therefore absorbed entirely by the domain randomization curriculum (\cref{ch:experiments}) rather than by a calibrated nominal model.
 %
