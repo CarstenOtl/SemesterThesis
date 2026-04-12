@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a LaTeX semester thesis (currently) and future master's thesis for TUM (Technical University of Munich), using the **AIRlatex** document class from the Chair of Robotics, Artificial Intelligence and Real-time Systems (I6/AIR). The thesis is written in English.
 
-**Title (semester thesis):** On the Training-Time Safety of Privileged Policy Distillation for Dexterous Grasping: A DAgger vs. SafeDAgger Study
+**Title (semester thesis):** Safe Privileged Policy Distillation for Vision-Based Dexterous Grasping
 **Working title (master's thesis):** Dexterous Manipulation of Unknown Objects & Fine Tool Use with Dual-Arm, Dual-Hand Robots
 
 **Author:** Carsten Oertel
@@ -162,10 +162,32 @@ rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.to
 - Abbreviations: use `\ac{RL}` for first use (expands to full form), `\acs{RL}` for short form only. Defined in `main.tex` abbreviation list. POMDP acronym is defined.
 - Algorithm pseudocode: use `algorithm` + `algpseudocode` environments (not `algorithmicx`). See Chapter 3 for examples.
 
+### CORE PRINCIPLE (from advisor review, April 2026)
+
+**This is a research thesis, not a lab report or a diary.** Every section must serve exactly one arc:
+
+**Problem → Solution Design → Experiments → Data Analysis → Conclusion → Future Plan**
+
+Everything that deviates from this equation is irrelevant and must be cut. No engineering war stories, no debugging narratives, no internal run naming, no "we tried X and it failed" diary entries. The reader should see a clean scientific argument: here is the problem, here is how we solve it, here is what happened, here is what it means.
+
 ### Chapter Organization Principle
 
-- **Chapter 3 (Methods):** Strictly mathematical and abstract. Problem formulation (POMDP), RL objectives (PPO), distillation algorithms (DAgger, SafeDAgger, DexSafeDagger). No implementation details, no specific numbers, no hardware descriptions.
-- **Chapter 4 (Experiments):** All implementation details. Hardware platform, simulation environment, reward terms/weights, observation/action spaces, network architectures, training hyperparameters, ADR ranges, evaluation protocol, results with concrete numbers, ablations.
+- **Chapter 3 (Methods):** YOUR method, stated mathematically and justified. No implementation details, no specific numbers, no hardware descriptions, no engineering details (e.g., GPU rendering). Do not explain others' original algorithm versions -- just state your own version clearly. Remove DexSafeDagger "completeness" paragraph. Cite Sutton for RL basics.
+- **Chapter 4 (Experiments):** All implementation details, stated compactly. Prioritize observation spaces, action spaces, termination conditions. Reward terms need mathematical definitions (quadratic? exponential?). Move reward design earlier in the section. Compress PPO hyperparameters. Distillation hyperparameters in paragraph form, not bullet lists. Justify evaluation metrics. Ablation section = experimental design + rationale, separate from results. Do not expose internal run naming (1a, 1p, etc.) without prior explanation.
+- **Summary of Findings:** Keep scientific findings only. Engineering findings (one-hot bug, LSTM checkpointing, physics stability) belong in Discussion (Ch.5), not in the main findings list.
+
+### Advisor Review Status (Chi v2, April 2026)
+
+**Core principle from Chi:** "This is a research thesis, not a lab report or a diary. Follow: problem - design solution - run experiments - analyze data - draw conclusion - create future plan. Everything else is irrelevant."
+
+Key revision directives (full details in memory: `project_chi_review_v2.md`):
+
+- **Title:** Polish. Remove "A DAgger vs. SafeDAgger Study." Consider: "towards safe exploration" or "RL-based teacher policy training + policy distillation."
+- **Abstract:** Structure as problem-solution-result. No related-work references. DAgger is "typical" not "standard."
+- **Ch.2 Related Work:** Each section needs pros/cons flow motivating the next. Distinguish distillation (model compression) from imitation learning. Mention Mixture of Experts. Add commonly randomized variables for dex manipulation in DR section. System identification is NOT sim-to-real (restructure/rename 2.3.2). Polish section titles.
+- **Ch.3 Methods:** State YOUR design and justify it mathematically. Remove DexSafeDagger paragraph. Remove GPU rendering paragraph (engineering). Assign +/- signs to reward terms. Don't call BC "the simplest" (avoid extreme terms). Mention our specific scenario for asymmetric actor-critic.
+- **Ch.4 Experiments:** Compact implementation details. Add math for reward terms. Explain teacher one-hot. Justify evaluation metrics. Ablation = design + rationale (not results). Explain run structure before referencing runs.
+- **Ch.4 Summary:** Move engineering findings (#4 one-hot, #6 LSTM, #7 physics) to Ch.5 Discussion.
 
 ## Writing Guidelines
 
