@@ -26,13 +26,13 @@ DexGraspNet~\cite{Wang2023} generated 1.32 million grasps for over 5{,}000 objec
 The principal advantage of analytical and data-driven planning is interpretability: grasp quality can be verified against well-understood physical criteria before execution.
 However, these methods share two fundamental limitations.
 First, the search space grows to $\mathrm{SE}(3) \times \mathbb{R}^{n_h}$ for an $n_h$-jointed hand, making exhaustive planning intractable for multi-fingered hands~\cite{Bicchi2000}.
-Second, all variants produce \emph{open-loop} grasp poses that depend on accurate models of object geometry, contact physics, and robot kinematics; whenever any of these models is wrong, as is unavoidable for novel objects, deformable materials, or worn hardware, the planned grasp fails~\cite{Tang2024}.
-Errors compound across the pipeline, and the absence of closed-loop feedback prevents recovery from perturbations.
+Second, all variants produce static grasp configurations that are executed by a separate controller and cannot adapt if conditions differ from the assumed model; whenever the object geometry, contact physics, or robot kinematics are wrong, as is unavoidable for novel objects, deformable materials, or worn hardware, the planned grasp fails~\cite{Tang2024}.
+Errors compound across the pipeline, and the absence of online adaptation prevents recovery from perturbations.
 
 \subsection{End-to-End Reinforcement Learning}%
 \label{subsec:learning_based_grasping}%
 
-The open-loop nature and model dependence of analytical methods motivate a fundamentally different paradigm: end-to-end \ac{RL}, which jointly learns perception, grasp strategy, and reactive control from interaction~\cite{Tang2024}.
+The static, non-adaptive nature and model dependence of analytical methods motivate a fundamentally different paradigm: end-to-end \ac{RL}, which jointly learns perception, grasp strategy, and reactive control from interaction~\cite{Tang2024}.
 Instead of relying on pre-specified grasp taxonomies, the policy discovers contact strategies through trial and error in simulation, producing closed-loop controllers that can react to perturbations at every time step.
 
 Kumar et al.~\cite{Kumar2016} were among the first to demonstrate model-based \ac{RL} for contact-rich manipulation on a 24-\acs{DoF} hand.

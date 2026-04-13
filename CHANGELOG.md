@@ -2,6 +2,103 @@
 
 Tracks recent changes to the thesis report. Newest entries on top.
 
+## 2026-04-13
+
+### Chapter 4 — Experiments and Results (Chi v2 review revisions)
+
+**Compression of implementation details (Chi: "compact format and briefly"):**
+- **§4.1.1 Simulation Environment**: reduced from 30 lines to 3 lines. Removed "Direct environment API" paragraph and PhysX parameters table (`tab:physics_config`). Kept: Isaac Lab + PhysX 5, 120 Hz sim / 60 Hz control.
+- **§4.1.1 Hardware Platform**: reduced from 50 lines to 8 lines. Removed sensor setup bullet list (already covered in Ch.3 `tab:ac_observations`), actuator parameters table (`tab:actuator_params`), contact physics paragraph, detailed FR3/Agile Hand specs. Kept: DoF counts, joint ranges, thumb speed constraint, hardware figure, USD asset note.
+
+**Section reorder (Chi: "do put this at the beginning"):**
+- Moved **Reward Design** from after Action Space to immediately after Hardware Platform — first substantive content the reader sees after the platform description.
+- Moved **Episode Structure** (termination conditions) to after Action Space, before Object Set. New order: Sim Env → Hardware → Reward Design → Obs Space → Action Space → Episode Structure → Object Set → Network → Training Config → ADR → Sim2Real.
+
+**Reward table with mathematical forms (Chi: "quadratic? exponential???"):**
+- Replaced the old Group/Term/Purpose/Weight table with a new Term/Purpose/Form/Weight table. Each reward term now has its functional form: exponential distance ($w \cdot e^{-\alpha d}$), quadratic angle penalty ($-w \cdot \theta^2$), binary indicators ($w \cdot \mathbb{1}[\cdot]$), contact-gated exponentials ($w \cdot e^{-\alpha d} \cdot m_c$), quadratic penalties ($-w \cdot \|\Delta a\|^2$).
+
+**PPO hyperparameters compressed (Chi: "no need"):**
+- Replaced the full PPO table (`tab:ppo_hyperparams`) with a single-paragraph inline listing of all hyperparameters.
+
+**Distillation hyperparameters as paragraph (Chi: "put this in a paragraph"):**
+- Converted the 9-item bullet list to a 3-sentence paragraph. References `eq:total_loss` from Ch.3 for the combined loss.
+
+**Evaluation metrics justified (Chi: "why do you need them?"):**
+- Rewrote §4.1.3 Evaluation Metrics with explicit justification for each metric: GSR = task completion (primary objective), UER = training-time safety (core hypothesis), Real UER = hardware-relevant safety (excludes simulation artifacts). Declared "all UER values refer to real UER unless stated otherwise." Removed the Evaluation Procedure subsubsection (script names are engineering detail).
+
+**Ablation section restructured (Chi: "ablation studies is how you design your ablation experiments and why, not the results"):**
+- Renamed §4.2 from "Ablation Studies" to **"Experimental Design"**.
+- Rewrote as 4 clean design-focused subsections: (1) Distillation Method Comparison (BC/DAgger/SafeDAgger — what and why), (2) Safety Threshold Sensitivity (δ sweep rationale), (3) Effect of Domain Randomization during Distillation, (4) Effect of Environment Count.
+- Removed all result numbers from the ablation section — these now live only in §4.3 Results.
+- **Removed**: Effect of Early Termination Penalty (merged into reward design), Effect of Teacher Strength (moved to appendix scope), LSTM Checkpoint Resume (moved to Ch.5 Discussion), Query Efficiency Analysis (TODO placeholder removed), Learning Curve Comparison (moved to results), Effect of Distillation Duration (placeholder removed).
+
+**Teacher training results compressed (Chi: "not part of main storyline"):**
+- Replaced 80-line Training Progression + Physics Stability Challenges + 3-teacher comparison with a 4-line paragraph showing only teacher 11 numbers (85.8% GSR, 12.1% real UER, ADR-14, 33k epochs, 1024 envs). Teacher 10 comparison, physics challenges table, physics timeline figure all removed from main text (appendix candidates).
+
+**Distillation results cleaned (Chi: "where did you explain the runs?"):**
+- Added experimental structure paragraph explaining what varies across experiments (method, δ, envs, ADR) and what is held constant (teacher, architecture, loss).
+- Removed internal run naming (1a, 1c, 5a, 7a, 8a, 8b, 9a, 9b) and one-hot bug narrative from the results text. Clean distillation summary table now uses Method/δ/Envs/ADR/GSR/UER columns without run IDs.
+- Simplified DAgger vs SafeDAgger comparison paragraph — removed "teacher quality dominates" and "one-hot bug" paragraphs (these are discussion points, not results).
+
+**Summary of Findings trimmed:**
+- Kept 4 scientific findings: (1) comparable GSR, (2) SafeDAgger produces safer students, (3) SafeDAgger degrades more gracefully under ADR, (4) δ = 2.0 optimal.
+- Removed engineering findings #4 (one-hot bug), #6 (LSTM checkpoint), #7 (physics stability) per Chi's "too engineering" / "not essential" notes. Added cross-reference to Ch.5 `sec:impl_details` where these are discussed.
+
+**Other fixes:**
+- Fixed dangling `\cref{sec:safedagger}` in Ch.5 → `\cref{sec:dagger_method}`.
+- Updated chapter intro paragraph to match new structure (Experimental Setup → Experimental Design → Results).
+
+### Chapter 3 — Methods (Chi v2 review revisions)
+
+**Continued from earlier session (same date):**
+- **§3.2.1 Asymmetric Actor–Critic**: added `\cite{Pinto2018}` (Pinto et al., RSS 2018 — origin of asymmetric actor-critic). Added bib entry `@inproceedings{Pinto2018}`. Rewrote justification sentence from "This design ensures..." (unsupported claim) to factual statement grounded in Pinto et al.: critic is discarded after training, so actor already operates on realistic proprioceptive interface.
+- **§3.2.1**: added actor/critic observation table (`tab:ac_observations`) with actual dimensions from codebase — actor 87D, critic 172D. Critic gets expanded hand body state (54D for 6 bodies), contact forces (3D), measured joint torques (28D). Updated surrounding text to match (replaced "per-finger contact wrenches" with accurate components).
+- **§3.2.1**: changed "one-hot encoding of the target object" → "scalar object identifier that tells the agent which object it is currently manipulating" (Chi: explain for the reader) → then corrected to "scalar" after codebase check confirmed it's a single dimension, not a K-dimensional one-hot.
+- **§3.2.2 Reward Structure**: added reward overview table (`tab:reward_overview`) with $r_{\text{hand}}$, $r_{\text{lift}}$, etc. notation, signs, and purpose. Updated `finger_curl` purpose to "Penalizes excessive finger curling to encourage an open-hand approach."
+- **§3.3.1 DAgger and SafeDAgger**: removed standalone DAgger algorithm box (kept only SafeDAgger algorithm with blue highlights). Condensed DAgger/SafeDAgger text from ~50 lines to ~20 lines.
+- **§3.3.1**: rewrote SafeDAgger algorithm box to reflect actual implementation: online per-step updates (no dataset aggregation / replay buffer), references combined loss `eq:total_loss`.
+- **§3.3.1**: added combined loss equation `L = L_action + λ_aux · L_aux` with auxiliary object position regression loss $\|\hat{x}_{obj} - x_{obj}\|^2$ (confirmed in codebase: `distillation_safedagger.py`).
+- **§3.3.1 Loss Function Selection**: collapsed from standalone subsection to inline paragraph. Removed L2/KL derivation. Credits DextrAH-RGB for comprehensive comparison; thesis uses weighted L2 as default without further ablation.
+- **§3.3.2 RGB-Based Distillation**: condensed from ~55 lines to ~20 lines. Removed detailed ResNet tokenization, cross-attention mask itemized list, DUSt3R reference. Kept: stereo for depth, shared ResNet-18, cross-view transformer, embed token → 64D embedding, LSTM head. Trimmed figure caption. Removed "photorealistic rendering" reference from section intro.
+- Removed all `\paragraph{}` headings — content now flows as normal paragraphs.
+- Moved teacher training pipeline figure (`fig:teacher_training`) from Ch.4 to Ch.3 §3.2 intro.
+- Moved student distillation pipeline figure (`fig:student_training`) from Ch.4 to Ch.3 §3.3 intro.
+
+### Abstract
+
+- Removed "and sim-to-real-aware actuator constraints" from both English and German abstracts (unnecessary detail).
+
+### Chapter 2 — Related Work
+
+- **§2.1.1**: replaced "open-loop grasp poses" with "static grasp configurations that are executed by a separate controller and cannot adapt if conditions differ from the assumed model" (user flagged that "open-loop" is not established terminology in this context).
+- **§2.1.2**: updated transition sentence to match ("static, non-adaptive nature" instead of "open-loop nature").
+
+### Title
+
+- **Renamed thesis** to "Safe Privileged Policy Distillation for Vision-Based Dexterous Grasping" (German: "Sichere Destillation privilegierter Strategien für geschicktes visuelles Greifen"). Chi: "A DAgger vs. SafeDAgger Study is unnecessary." Two alternative title options kept as comments in `main.tex`.
+
+### Abstract (Chi v2 review revisions)
+
+- Restructured as **problem → solution → result** (Chi: "problem - solution - result. no need to relate to relevant works"). Removed references to related work. Changed "standard" to "typical" for DAgger (Chi: "DAGGER is 'typical' not standard"). Now emphasizes the safety-aware distillation pipeline as the contribution rather than a head-to-head algorithm comparison. Both English and German abstracts rewritten.
+
+### Chapter 2 — Related Work (Chi v2 review revisions)
+
+- **§2.1.1** renamed from "Rule-Based and Analytical Approaches" to **"Analytical and Data-Driven Grasp Planning"**. Now ends with explicit pros (interpretability, verifiable quality) and cons (intractable search space, open-loop / model dependence) motivating the shift to learning (Chi: "how is rule-based method originally done… most importantly, pros and cons").
+- **§2.1.2** renamed from "Learning-Based Approaches" to **"End-to-End Reinforcement Learning"**. Opens by connecting to the limitations from §2.1.1 (Chi: "with the pros and cons of the last section, you can talk about why people shift to learning based"). Ends with the sim-to-real gap as explicit motivation for the distillation section. Tightened prose — removed extended descriptions of individual works.
+- **§2.2** renamed from "Privileged Teacher–Student Distillation" to **"Privileged Policy Distillation"**. Now distinguishes knowledge distillation (Hinton et al., model compression) from imitation learning / modality transfer. Added **Mixture of Experts** mention as an alternative paradigm (Chi: "mention a comparison between distillation and Mixture of Experts"). Added a storyline justifying the path from distillation → imitation learning → DAgger (Chi: "do state the distillation storyline step by step to justify our choice").
+- **§2.2.1** renamed from "Behavioral Cloning and DAgger" to **"Imitation Learning and DAgger"**. Tightened prose; changed "default" to "typical" for DAgger.
+- **§2.2.2** renamed from "Safety-Aware and Mixed-Control Variants" to **"Safety-Aware Distillation"**. Removed DexSafeDagger paragraph and IBORL paragraph. Simplified SafeDAgger description to focus on the gating mechanism.
+- **§2.3** renamed from "Sim-to-Real Transfer and Generalization" to **"Sim-to-Real Transfer through Domain Randomization"**. Removed the §2.3.2 System Identification subsection entirely (Chi: "system ident is not a sim2real to my understanding"). Added paragraph on **commonly randomized variables** in dexterous manipulation — object properties, actuator characteristics, kinematic perturbations, sensor noise (Chi: "why don't you introduce some of the most frequently randomized variables?"). Collapsed into a single flat section (no subsections).
+
+### Chapter 3 — Methods (Chi v2 review revisions)
+
+- **§3.1 Problem Formulation**: added Sutton & Barto citation (`\cite{SuttonBarto2018}`) to MDP introduction.
+- **§3.2.1 Asymmetric Actor–Critic**: added a new paragraph grounding the asymmetry in our specific scenario — critic sees object pose, velocity, and per-finger contact wrenches; actor sees only proprioception + one-hot object ID — and explains that this ensures the teacher's actor already operates on a realistic proprioceptive interface for distillation.
+- **§3.2.2 Reward Structure**: rewrote reward equation to include explicit `sign_i ∈ {+1, -1}` with `w_i > 0` and `r_i ≥ 0`. Added sentences explaining that positive terms incentivize desired behavior, negative terms penalize undesirable behavior, and that functional forms are in Ch.4.
+- **§3.3.1 DAgger and SafeDAgger**: replaced "The simplest distillation strategy, behavioral cloning…" with neutral `\ac{BC}` phrasing (Chi: "try not to use extreme terms"). Rewrote the section to state our design directly: BC problem → DAgger fix → "this thesis adopts SafeDAgger" → our direct action-disagreement gating justification. Removed the extended discussion of the original DAgger mixing schedule and original SafeDAgger classifier (Chi: "no need to explain the original version, just state your version clearly").
+- **Removed DexSafeDagger paragraph** (Chi: "no need"). The two-sentence "for completeness" paragraph citing `ChiZhang2026` is gone.
+- **§3.3.3 RGB-Based Distillation**: removed the GPU rendering paragraph (Chi: "this is engineering, not scientific"). Replaced with a shorter "Visual domain randomization" paragraph that keeps the scientific content (visual sim-to-real gap, visual DR as mitigation) but drops the engineering discussion of GPU-accelerated tiled rendering.
+
 ## 2026-04-09
 
 ### Title and Title Page

@@ -70,7 +70,7 @@ All experiments use the Agile Hand on the FR3 and target a single task (top-down
 The conclusions about teacher quality dominance and SafeDAgger's graceful degradation may or may not transfer to other hands (e.g., the Allegro or Shadow hands), other arms, or tasks that involve in-hand reorientation, regrasping, or tool use.
 
 \paragraph{Direct action-disagreement gating instead of a learned safety classifier.}
-The SafeDAgger variant used in this thesis (\cref{sec:safedagger}) gates teacher intervention on the L2 distance between the student's proposed action and the teacher's action, rather than on a learned binary safety classifier as in the original Zhang and Cho formulation.
+The SafeDAgger variant used in this thesis (\cref{sec:dagger_method}) gates teacher intervention on the L2 distance between the student's proposed action and the teacher's action, rather than on a learned binary safety classifier as in the original Zhang and Cho formulation.
 This choice is justified by the fact that the teacher is queried at every step in the asymmetric actor--critic setting, which makes a separate classifier redundant.
 It does, however, mean that the safety signal in this work is purely action-based and does not incorporate value-based failure prediction as in DexSafeDagger.
 Whether a learned classifier or a Q-value-based gate would yield additional gains on this platform remains an open question.
