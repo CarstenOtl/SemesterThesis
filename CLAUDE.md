@@ -170,6 +170,17 @@ rm -f main.aux main.bbl main.bcf main.blg main.log main.out main.run.xml main.to
 
 Everything that deviates from this equation is irrelevant and must be cut. No engineering war stories, no debugging narratives, no internal run naming, no "we tried X and it failed" diary entries. The reader should see a clean scientific argument: here is the problem, here is how we solve it, here is what happened, here is what it means.
 
+### THESIS FRAMING (verbal feedback from Chi, April 2026)
+
+**The thesis is NOT about DAgger vs. SafeDAgger.** It is about building a complete pipeline: privileged RL teacher training with a custom dexterous hand → RGB-based policy distillation. The core contribution is the NEW RL pipeline itself (environment, reward, ADR, asset integration for the Agile Hand on FR3). The teacher policy is a means to an end for the RGB distillation.
+
+- **Teacher section:** Only show that the teacher works. No teacher-vs-teacher comparison in the main text (move to appendix if needed).
+- **Distillation section:** Compare 3 methods: BC, DAgger, SafeDAgger. Justify the experimental design.
+- **3 key metrics:** Global lift success, average unsafe episode rate, per-object failure mode comparison.
+- **Emphasis:** Objects that show better unsafe episode rates during training time. Other plots go to appendix.
+- **Real UER:** Must be defined properly and upfront, not just mentioned in discussion.
+- **Ablation studies:** Describe experimental design and justify design choices, not just report results.
+
 ### Chapter Organization Principle
 
 - **Chapter 3 (Methods):** YOUR method, stated mathematically and justified. No implementation details, no specific numbers, no hardware descriptions, no engineering details (e.g., GPU rendering). Do not explain others' original algorithm versions -- just state your own version clearly. Remove DexSafeDagger "completeness" paragraph. Cite Sutton for RL basics.
