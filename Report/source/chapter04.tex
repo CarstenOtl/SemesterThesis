@@ -4,32 +4,18 @@
 
 This chapter describes the experimental realization of the methods introduced in \cref{ch:methods}.
 \Cref{sec:experimental_setup} presents the experimental setup, covering teacher policy training (\cref{sec:teacher_training_setup}), student policy distillation (\cref{sec:student_implementation}), and the evaluation metrics (\cref{sec:eval_protocol}).
-\Cref{sec:ablations} describes the experimental design and the rationale behind each ablation.
-\Cref{sec:results} reports the results for both teacher training and distillation, including the head-to-head comparison between DAgger and SafeDAgger.
+\Cref{sec:ablations} describes the ablation studies and their rationale.
+\Cref{sec:results} reports the results for both teacher training and distillation.
 
 %% =========================================================================
 \section{Experimental Setup}%
 \label{sec:experimental_setup}%
 
-\subsection{Teacher Policy Training}%
-\label{sec:teacher_training_setup}%
-
-\subsubsection{Simulation Environment}%
-\label{sec:sim_env}%
-
-All training and distillation is performed in NVIDIA Isaac Lab~\cite{Mittal2023}, a GPU-accelerated simulation framework built on Isaac Sim and PhysX~5.
+All experiments are conducted in Isaac Lab 2.1.0~\cite{Mittal2023} (Isaac Sim 5.1.0) on a single NVIDIA RTX 4090 GPU.
 The simulation runs at 120\,Hz with a policy control frequency of 60\,Hz.
-Environments are implemented using the direct API (\texttt{DirectRLEnv}), following the same paradigm as DextrAH-RGB~\cite{Singh2025}.
-
-\subsubsection{Hardware Platform}%
-\label{sec:hardware}%
-
-The robotic platform consists of a \ac{FR3} 7-\acs{DoF} torque-controlled arm equipped with an Agile Hand (16 actuated \acs{DoF}, 5 fingers, manufactured by Agile Robots SE), forming a 23-\acs{DoF} arm--hand system.
-All joints are controlled via position targets with simulated PD controllers.
-Each finger has MCP pitch ($0\degree$--$75\degree$), MCP yaw ($\pm 15\degree$), PIP ($0\degree$--$85\degree$), and DIP ($0\degree$--$85\degree$, coupled to PIP) joints; the opposing thumb adds a rotation \acs{DoF} ($60\degree$ range) at a significantly lower velocity ($\approx$12\,deg/s), which is a key constraint for sim-to-real transfer (\cref{sec:sim2real_curriculum}).
-The arm and hand are combined into a single articulated asset in \ac{USD} format.
-\cref{fig:hardware_platform} shows the physical Agile Hand and the assembled system as rendered in Isaac Sim.
-The observation split between actor, critic, and student is described in \cref{tab:ac_observations} and \cref{sec:obs_space}.
+The robotic platform consists of a \ac{FR3} 7-\acs{DoF} arm equipped with a 16-\acs{DoF} Agile Hand (Agile Robots SE), forming a 23-\acs{DoF} arm--hand system controlled via joint position targets with simulated PD controllers (\cref{fig:hardware_platform}).
+The arm and hand are combined into a single articulated \ac{USD} asset with convex-hull collision meshes.
+The observation, action, and reward design are defined in \cref{sec:asymmetric_ac,sec:reward_structure}.
 
 \begin{figure}[htb]
     \centering
@@ -50,126 +36,15 @@ The observation split between actor, critic, and student is described in \cref{t
     \label{fig:hardware_platform}
 \end{figure}
 
-\subsubsection{Reward Design}%
-\label{sec:reward_implementation}%
+\subsection{Teacher Policy Training}%
+\label{sec:teacher_training_setup}%
 
-The reward function follows the structure defined in \cref{eq:reward}.
-\cref{tab:reward_terms} lists every term used in the final teacher training configuration, along with its functional form, weight, and sign.
-Weights marked with a star are modulated by \ac{ADR} over the course of training (\cref{sec:adr_implementation}).
-
-\begin{table}[htb]
-    \centering
-    \caption{Reward terms for teacher policy training. $d$ denotes hand-to-object distance, $\theta$ the palm alignment angle, $n_c$ the number of finger contacts, $m_c$ a binary contact mask, $\Delta a$ the action delta, and $\dot{q}$ joint velocities. Weights marked $\star$ are ADR-modulated; ranges give the endpoints.}
-    \label{tab:reward_terms}
-    \small
-    \begin{tabular}{lp{3.2cm}lc}
-        \toprule
-        \textbf{Term} & \textbf{Purpose} & \textbf{Form} & \textbf{Weight} \\
-        \midrule
-        $r_{\text{hand}}$    & Hand-to-object approach         & $w \cdot e^{-\alpha d}$             & $+4.0$ \\
-        $r_{\text{palm}}$    & Palm alignment                  & $-w \cdot \theta^2$                 & $+0.7$ \\
-        $r_{\text{curl}}$    & Finger curl penalty             & $-w \cdot \|q - q_{\text{ref}}\|^2$ & $0.3 \to 0.8^{\star}$ \\
-        \midrule
-        $r_{\text{contact}}$ & Hand-object contact             & $w \cdot n_c$                       & $+3.0$ \\
-        $r_{\text{grasp}}$   & Thumb + finger in contact       & $w \cdot \mathbb{1}[\text{thumb} \wedge \text{finger}]$ & $+3.0$ \\
-        $r_{\text{lift}}$    & Lift after stable contact       & $w \cdot e^{-\alpha |z - z_g|} \cdot m_c$ & $40 \to 30^{\star}$ \\
-        $r_{\text{goal}}$    & Object-to-goal distance         & $w \cdot e^{-\alpha d_g} \cdot m_c$ & $+40.0$ \\
-        $r_{\text{time}}$    & Proximity time bonus            & $w \cdot \mathbb{1}[d < 0.2]$       & $+0.005$ \\
-        $r_{\text{success}}$ & Goal region bonus               & $w \cdot \mathbb{1}[\text{at goal}]$ & $+20.0$ \\
-        \midrule
-        $r_{\text{action}}$  & Action rate penalty             & $-w \cdot \|\Delta a\|^2$           & $0.01$ \\
-        $r_{\text{vel}}$     & Joint velocity penalty          & $-w \cdot \|\dot{q}\|^2$           & $5 \!\cdot\! 10^{-4}$ \\
-        $r_{\text{term}}$    & Early termination penalty       & $-w \cdot \mathbb{1}[\text{no contact}]$ & $1.0$ \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-The lift and goal terms are gated by a contact mask $m_c$, ensuring the policy only receives reward for lifting when actually grasping the object rather than accidentally launching it.
-Hand joints are penalized $1.5\times$ more than arm joints for action rate and $3\times$ more for joint velocity, encouraging smooth finger motions.
-
-\subsubsection{Observation Space}%
-\label{sec:obs_space}%
-
-The teacher uses an asymmetric actor--critic architecture with different observations for actor and critic, as described in \cref{sec:asymmetric_ac}.
-\cref{tab:teacher_obs} details the actor observation vector.
-
-\begin{table}[htb]
-    \centering
-    \caption{Teacher actor observation space.}
-    \label{tab:teacher_obs}
-    \begin{tabular}{lcp{6.5cm}}
-        \toprule
-        \textbf{Component} & \textbf{Dim} & \textbf{Description} \\
-        \midrule
-        Joint positions & 23 & Arm (7) + hand (16) joint angles \\
-        Joint velocities & 23 & Arm (7) + hand (16) joint velocities \\
-        Hand position & 3 & Palm center position in world frame \\
-        Hand velocity & 3 & Palm center linear velocity \\
-        Object position & 3 & Object center of mass position \\
-        Object orientation & 4 & Object orientation (quaternion) \\
-        Object goal position & 3 & Target lift height \\
-        Object scale & 1 & Randomized object scale factor \\
-        Previous action & 23 & Action applied at $t-1$ \\
-        Teacher one-hot & 1 & Fixed $=1$ (compatibility placeholder) \\
-        \midrule
-        \textbf{Total} & \textbf{87} & \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-The critic observation additionally includes object velocities (6D), contact forces, contact torques, and the teacher one-hot flag, yielding a larger observation vector.
-% PLACEHOLDER: Add exact critic observation dimension once confirmed from code.
-
-\subsubsection{Action Space}%
-\label{sec:action_space}%
-
-The action space is 23-dimensional, consisting of joint position targets for all 7 arm joints and 16 hand joints.
-Actions are scaled from the policy's normalized output $a_t \in [-1, 1]^{23}$ to absolute joint position targets using per-joint scaling factors.
-No geometric fabrics or motion primitives are used; the policy directly commands joint positions, which distinguishes this work from the FGP-based approach in DextrAH-RGB~\cite{Singh2025}.
-
-\subsubsection{Episode Structure}%
-\label{sec:episode_structure}%
-
-Each episode has a maximum duration of 10\,s (600 steps at 60\,Hz) for teacher training and 5\,s (300 steps) for student distillation.
-At the start of each episode, the object is placed on a table surface with randomized position and orientation, and the robot is initialized to a fixed home configuration above the object.
-Episodes terminate at
-%
-\begin{equation}\label{eq:termination}
-    T = \min\left\{t \;\middle|\; \mathbb{I}_{\text{unsafe}}(s_t) = 1 \;\lor\; t \geq T_{\max}\right\},
-\end{equation}
-%
-where $T_{\max} = 10\,\mathrm{s}$ and $\mathbb{I}_{\text{unsafe}}$ is the indicator of any early-termination condition in \cref{tab:terminations}.
-These conditions cover both task failures (object escape, hand drift) and unsafe robot states (palm flip, table collision, numerical instability), and are reused as unsafe-event signals for SafeDAgger's intervention logic during distillation.
-Early terminations before any object contact incur the $r_{\text{term}}$ penalty from \cref{tab:reward_terms}.
-
-\begin{table}[htb]
-    \centering
-    \caption{Episode termination conditions. All early terminations mark the state as unsafe; penalty-eligible conditions additionally trigger $r_{\text{term}}$ when they occur before any object contact.}
-    \label{tab:terminations}
-    \small
-    \begin{tabular}{lp{7.5cm}c}
-        \toprule
-        \textbf{Condition} & \textbf{Trigger} & \textbf{Penalty} \\
-        \midrule
-        \texttt{object\_escape\_xy}    & Object leaves the $\pm0.25\,\mathrm{m}\times\pm0.4\,\mathrm{m}$ workspace rectangle & \checkmark \\
-        \texttt{object\_too\_low}      & Object falls below the table surface ($z < 0.2\,\mathrm{m}$) & \checkmark \\
-        \texttt{hand\_too\_far}        & Hand workspace body leaves a $0.35\,\mathrm{m}$-inflated workspace box & \checkmark \\
-        \texttt{hand\_too\_close}      & Any fingertip or palm comes within $1\,\mathrm{cm}$ of the table surface & -- \\
-        \texttt{palm\_flip}            & Palm direction deviates more than $108^{\circ}$ from the target down-direction & \checkmark \\
-        \texttt{arm\_table\_contact}   & Any arm link contacts the table & -- \\
-        \texttt{hand\_vel\_explosion}  & Any finger joint velocity exceeds $50\,\mathrm{rad/s}$ & -- \\
-        \texttt{robot\_unstable}       & NaN or Inf detected in joint positions or velocities & -- \\
-        \midrule
-        \texttt{timeout}               & Episode reaches $T_{\max} = 10\,\mathrm{s}$ (600 steps at $60\,\mathrm{Hz}$) & -- \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsubsection{Object Set}%
-\label{sec:object_set}%
-
-Training uses a set of 13 objects from the VisDex dataset, covering a range of geometries and sizes (\cref{fig:training_objects}).
-At episode reset, each parallel environment is assigned one object uniformly at random, and the object's mass, friction, and scale are randomized within the \ac{ADR} ranges.
+The teacher is trained with \ac{PPO} on 1{,}024 parallel environments with \ac{ADR} following the formulation in \cref{sec:adr_formulation}.
+We evaluate on 13 objects from the VisDex dataset (\cref{fig:training_objects}), spanning compact graspable shapes (teddy bear, closed fist) to thin and irregular objects (plane, toy bagger).
+At episode reset, each environment is assigned one object uniformly at random, and the object's mass, friction, and scale are randomized within the \ac{ADR} ranges.
+Each episode lasts up to 10\,s (600 steps) and terminates early if any unsafe condition from \cref{tab:terminations} is triggered.
+These termination conditions are reused as unsafe-event signals for SafeDAgger's intervention logic during distillation.
+Training hyperparameters and \ac{ADR} parameter ranges are listed in \cref{app:ppo_hyperparams,app:adr_params}.
 
 \begin{figure}[htb]
     \centering
@@ -242,184 +117,133 @@ At episode reset, each parallel environment is assigned one object uniformly at 
         \includegraphics[width=\textwidth]{trained_objects/elefant_toy_view_1}
         \caption{Elephant toy}
     \end{subfigure}
-    \caption{The 13 training objects from the VisDex dataset. The objects span a wide range of geometries, from compact graspable shapes (teddy bear, closed fist) to thin and irregular objects (plane, toy bagger).}
+    \caption{The 13 training objects from the VisDex dataset.}
     \label{fig:training_objects}
 \end{figure}
 
-\subsubsection{Network Architecture}%
-\label{sec:teacher_network}%
-
-The teacher policy uses an \ac{LSTM}-based recurrent network implemented in rl\_games.
-The actor consists of an MLP encoder followed by an LSTM layer with 1024 hidden units, followed by an output head mapping to the 23-dimensional action space.
-The critic has an identical architecture but receives the larger critic observation.
-
-% PLACEHOLDER: Add exact MLP layer sizes (e.g., [512, 256] or [1024, 512]) once confirmed from the YAML config.
-
-\subsubsection{Training Configuration}%
-\label{sec:training_config}%
-
-The teacher is trained with \ac{PPO} using a learning rate of $1 \times 10^{-4}$, clip parameter $\epsilon = 0.2$, horizon length 16~steps, discount $\gamma = 0.99$, GAE $\lambda = 0.95$, and minibatch size~2048 across 1{,}024 parallel environments for up to 33{,}000 epochs.
-Training is performed headless on a single NVIDIA GPU.
-
-\subsubsection{Automatic Domain Randomization}%
-\label{sec:adr_implementation}%
-
-The \ac{ADR} curriculum follows the formulation in \cref{sec:adr_formulation} with $N_{\text{max}} = 50$ increments and a success threshold $\tau_{\text{ADR}} = 0.4$.
-\cref{tab:adr_params} lists the key randomized parameters and their start/max ranges.
-
 \begin{table}[htb]
     \centering
-    \caption{Automatic Domain Randomization parameters.}
-    \label{tab:adr_params}
-    \begin{tabular}{lcc}
+    \caption{Episode termination conditions. All early terminations mark the state as unsafe; penalty-eligible conditions additionally trigger $r_{\text{term}}$ when they occur before any object contact.}
+    \label{tab:terminations}
+    \small
+    \begin{tabular}{lp{7.5cm}c}
         \toprule
-        \textbf{Parameter} & \textbf{Start Range} & \textbf{Max Range} \\
+        \textbf{Condition} & \textbf{Trigger} & \textbf{Penalty} \\
         \midrule
-        Object mass scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
-        Object friction (static) & $[1.0, 1.0]$ & $[0.5, 1.5]$ \\
-        Robot restitution & $[1.0, 1.0]$ & $[0.8, 1.0]$ \\
-        Arm stiffness scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
-        Arm damping scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
-        Finger MCP pitch stiffness & $[1.0, 1.0]$ & $[0.17, 1.0]$ \\
-        Finger MCP pitch damping & $[1.0, 1.0]$ & $[0.083, 1.0]$ \\
-        Finger MCP yaw stiffness & $[1.0, 1.0]$ & $[0.025, 1.0]$ \\
-        Finger PIP stiffness & $[1.0, 1.0]$ & $[0.02, 1.0]$ \\
-        Thumb rotation velocity limit & $[20.0, 20.0]$ & $[0.21, 20.0]$\,rad/s \\
+        \texttt{object\_escape\_xy}    & Object leaves the $\pm0.25\,\mathrm{m}\times\pm0.4\,\mathrm{m}$ workspace rectangle & \checkmark \\
+        \texttt{object\_too\_low}      & Object falls below the table surface ($z < 0.2\,\mathrm{m}$) & \checkmark \\
+        \texttt{hand\_too\_far}        & Hand workspace body leaves a $0.35\,\mathrm{m}$-inflated workspace box & \checkmark \\
+        \texttt{hand\_too\_close}      & Any fingertip or palm comes within $1\,\mathrm{cm}$ of the table surface & -- \\
+        \texttt{palm\_flip}            & Palm direction deviates more than $108^{\circ}$ from the target down-direction & \checkmark \\
+        \texttt{arm\_table\_contact}   & Any arm link contacts the table & -- \\
+        \texttt{hand\_vel\_explosion}  & Any finger joint velocity exceeds $50\,\mathrm{rad/s}$ & -- \\
+        \texttt{robot\_unstable}       & NaN or Inf detected in joint positions or velocities & -- \\
+        \midrule
+        \texttt{timeout}               & Episode reaches $T_{\max} = 10\,\mathrm{s}$ (600 steps at $60\,\mathrm{Hz}$) & -- \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-The ADR is designed with sim-to-real transfer in mind: the maximum ranges for finger joint stiffness and damping correspond to values measured on the real Agile Hand hardware using an Isaac Lab gain tuner.
-The thumb rotation velocity limit is ramped down toward the real hardware limit of approximately 12\,deg/s ($\approx 0.21$\,rad/s).
-
-All ADR parameters share a single increment counter, meaning all parameters progress together.
-This simplifies the curriculum but does not allow per-parameter scheduling.
-\cref{fig:adr_ranges} visualizes the start values and maximum ADR ranges for the key parameters.
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.75\textwidth]{plots/adr_ranges}
-    \caption{ADR parameter ranges. Blue bars indicate the full randomization range at maximum ADR level. Red diamonds mark the nominal start values. The thumb velocity limit spans the widest relative range, from 20\,rad/s (simulation) to 0.21\,rad/s (hardware limit).}
-    \label{fig:adr_ranges}
-\end{figure}
-
-\subsubsection{Sim-to-Real Curriculum}%
-\label{sec:sim2real_curriculum}%
-
-To close the sim-to-real gap, a second-generation teacher (teacher~11) is trained from scratch with hardware-realistic constraints incorporated into the \ac{ADR} curriculum.
-The corresponding training results are reported in \cref{sec:teacher_results}.
-
-\paragraph{Curriculum design.}
-The sim-to-real curriculum adds three categories of hardware constraints that are progressively introduced via \ac{ADR}:
-\begin{enumerate}
-    \item \textbf{Finger actuator gains:} Per-joint-group stiffness and damping scales, starting at nominal simulation values and widening toward hardware measurements. Initial attempts with hardware-exact gain targets (e.g., MCP pitch stiffness scale down to 0.17) caused policy collapse at ADR levels 16--18 (run~1a); relaxed ranges of $[0.1, 1.0]$ proved stable.
-    \item \textbf{Effort and velocity limits:} The thumb rotation velocity limit is ramped from 20\,rad/s (simulation) toward 0.21\,rad/s ($\approx$12\,deg/s, hardware limit). Arm effort limits are reduced toward FR3 factory specs (87\,Nm for joints~1--4, 12\,Nm for joints~5--7).
-    \item \textbf{Reward rebalancing:} The object-to-goal weight was doubled ($20 \to 40$) and a success bonus ($w = 10$) was added, since the original reward balance caused the policy to optimize for holding objects rather than delivering them to the goal height (run~1d plateau at in-success-region 0.25--0.35).
-\end{enumerate}
-
-%% =========================================================================
 \subsection{Student Policy Distillation}%
 \label{sec:student_implementation}%
 
+The student replaces the teacher's privileged object state with stereo RGB images ($320 \times 240$ at 30\,fps) while retaining the proprioceptive inputs (joint positions/velocities, hand pose, goal position, previous action).
+The student does \emph{not} receive the object position, orientation, scale, or contact information; these must be inferred from the visual input.
+The visual encoder, cross-attention fusion, and LSTM policy head are described in \cref{sec:rgb_distillation}.
 
-\subsubsection{Student Observation Space}%
-\label{sec:student_obs}%
-
-The student replaces the teacher's privileged object state with RGB image observations.
-The student observation consists of:
-\begin{itemize}
-    \item \textbf{Proprioceptive state:} Joint positions (23D), joint velocities (23D), hand position (3D), hand velocity (3D), object goal position (3D), and previous action (23D).
-    \item \textbf{Visual input:} Simulated stereo RGB images at $320 \times 240$ resolution from wrist-mounted cameras.
-\end{itemize}
-Crucially, the student does \emph{not} receive the object position, orientation, scale, or contact information; these must instead be inferred from the visual input.
-
-\subsubsection{Student Network Architecture}%
-\label{sec:student_network}%
-
-The student uses a vision--proprioception fusion architecture:
-\begin{enumerate}
-    \item \textbf{Visual encoder:} A ResNet-18 backbone processes each stereo image independently, producing a 32-dimensional feature vector per image.
-    \item \textbf{Cross-attention fusion:} A cross-attention transformer module fuses the two stereo features into a single 64-dimensional visual embedding.
-    \item \textbf{Policy head:} The visual embedding is concatenated with the proprioceptive state vector and fed into an \ac{LSTM} with 512 hidden units, followed by a linear output layer producing the 23-dimensional action.
-\end{enumerate}
-
-% PLACEHOLDER: Add figure showing the student network architecture (visual encoder -> cross-attention -> LSTM -> action).
-% \begin{figure}[htb]
-%     \centering
-%     \includegraphics[width=0.85\textwidth]{student_architecture}
-%     \caption{Student policy network architecture. Stereo RGB images are encoded by a shared ResNet-18 backbone, fused via cross-attention, and concatenated with proprioceptive features before an LSTM policy head.}
-%     \label{fig:student_architecture}
-% \end{figure}
-
-\subsubsection{SafeDagger Distillation Configuration}%
-\label{sec:distillation_config}%
-
-The distillation follows the SafeDAgger procedure described in \cref{alg:safedagger}.
-The safety policy uses the per-environment L2 action error as the intervention criterion: for each environment, the teacher takes over when $\|e_t\|_2 > \delta$.
-The threshold $\delta$ was swept across multiple runs (see \cref{sec:ablation_threshold}); the final configuration uses $\delta = 2.0$.
-The intervention rate $\beta_{\text{safe}}$ is computed as the fraction of environments where the threshold is exceeded.
-
-Distillation uses Adam with a learning rate of $1 \times 10^{-4}$ and the combined loss from \cref{eq:total_loss} (auxiliary coefficient $\lambda_{\text{aux}} = 0.02$).
-Training runs for 100{,}000 iterations across 24 parallel environments (3~per object) on an 8-object subset of the VisDex dataset, with stereo rendering enabled and domain randomization disabled.
-Episodes last 10\,s, matching the teacher training configuration.
+Distillation follows the SafeDAgger procedure from \cref{alg:safedagger}, using Adam with a learning rate of $1 \times 10^{-4}$ and the combined loss from \cref{eq:total_loss} ($\lambda_{\text{aux}} = 0.02$).
+The teacher intervenes whenever the per-environment L2 action disagreement exceeds the safety threshold $\delta$ (\cref{sec:ablation_threshold}).
+Training runs for 100{,}000 iterations across 24 parallel environments.
+The object set is reduced from the teacher's 13 VisDex objects to an 8-object subset (basketball shoe, closed fist, elephant toy, mario, milk pot, teddy bear, toy bagger, turtle candle holder) to ensure at least 3 environments per object, which produces more stable per-object gradients during online distillation.
+Following DextrAH-RGB~\cite{Singh2025}, visual domain randomization is applied during distillation: at each episode reset, dome-light HDRI backgrounds, material properties (albedo, roughness, metallic constant) of the robot, table, and object, as well as object and table textures are randomized.
+Additional data augmentations include color jitter and motion blur.
 
 %% =========================================================================
 \subsection{Evaluation Metrics}%
 \label{sec:eval_protocol}%
 
 Three metrics are used to evaluate both teacher and student policies.
-Each captures a different aspect of the pipeline: task completion, training-time safety, and hardware-relevant safety.
+Let $\tau \in \{1, \ldots, N\}$ index evaluation episodes and $t \in \{0, \ldots, T_\tau\}$ index time steps within an episode.
+Unless otherwise stated, evaluation episodes use a horizon of 10\,s and each configuration is evaluated over $N = 480$--$640$ episodes (60--80 per object).
 
-\begin{description}
-    \item[\ac{GSR}] measures the fraction of episodes where the object is lifted above the table surface and held with stable contact for at least 0.5\,s (30 steps at 60\,Hz).
-    The hold requirement prevents counting accidental upward launches as successful grasps.
-    This is the primary task metric: a policy is useful only if it can reliably grasp and lift objects.
+\paragraph{Lift success (grasp with hold).}
+Let $h_t^\tau$ denote the object height above the table at time step $t$ of episode $\tau$, and let $H$ be a lift threshold.
+An episode is considered successful if the object remains above $H$ for at least $N_{\text{hold}}$ consecutive steps:
+%
+\begin{equation}\label{eq:lift_success}
+    \mathbb{I}^{\tau}_{\text{lift}} = \mathbb{I}\!\left[\exists\, t : \forall\, k \in \{0, \ldots, N_{\text{hold}}-1\},\; h_{t+k}^{\tau} > H\right].
+\end{equation}
+%
+In this work, $H$ corresponds to the table surface and $N_{\text{hold}} = 30$ (0.5\,s at 60\,Hz).
+The hold requirement prevents counting accidental upward launches as successful grasps.
+The \ac{GSR} is the primary task metric:
+%
+\begin{equation}\label{eq:gsr}
+    \text{GSR} = \frac{1}{N} \sum_{\tau=1}^{N} \mathbb{I}^{\tau}_{\text{lift}}.
+\end{equation}
 
-    \item[\ac{UER}] measures the fraction of episodes containing at least one early termination due to an unsafe event (\cref{tab:terminations}).
-    This metric quantifies training-time safety, which is the central hypothesis of this thesis: SafeDAgger should reduce the number of unsafe episodes the student visits during distillation.
+\paragraph{Unsafe episode rate.}
+An episode may terminate early due to one of four hardware-relevant failure modes:
+\begin{itemize}
+    \item \textbf{Harmful collision} ($m = \text{coll}$): any fingertip or palm body comes within 1\,cm of the table surface.
+    \item \textbf{Object out of bounds} ($m = \text{obj}$): the object leaves the workspace rectangle or falls below 0.2\,m height.
+    \item \textbf{Palm flipped} ($m = \text{flip}$): the palm direction deviates more than $108^{\circ}$ from the downward-facing target direction.
+    \item \textbf{Hand too far} ($m = \text{hf}$): the hand base link leaves a 0.35\,m-inflated bounding box around the table workspace.
+\end{itemize}
+Let $\mathcal{M} = \{\text{coll}, \text{obj}, \text{flip}, \text{hf}\}$ denote this set of termination modes, and let $\mathbb{I}^{\tau}_{m} \in \{0,1\}$ indicate whether mode $m \in \mathcal{M}$ occurs in episode $\tau$.
+An episode is unsafe if any mode is triggered:
+%
+\begin{equation}\label{eq:unsafe}
+    \mathbb{I}^{\tau}_{\text{unsafe}} = \mathbb{I}\!\left[\bigvee_{m \in \mathcal{M}} \mathbb{I}^{\tau}_{m} = 1\right].
+\end{equation}
+%
+The \ac{UER} quantifies training-time safety:
+%
+\begin{equation}\label{eq:uer}
+    \text{UER} = \frac{1}{N} \sum_{\tau=1}^{N} \mathbb{I}^{\tau}_{\text{unsafe}}.
+\end{equation}
+%
+This definition excludes \texttt{physics\_instability} events (NaN joint states, velocity explosions), which are simulation-only artifacts that cannot occur on physical hardware.
+All \ac{UER} values reported in this thesis refer to this hardware-relevant definition unless stated otherwise.
+Full results including physics instability are provided in \cref{app:full_results}.
 
-    \item[Real \ac{UER}] is the \ac{UER} excluding \texttt{physics\_instability} events (NaN joint states, velocity explosions), which are simulation-only artifacts that cannot occur on physical hardware.
-    This metric provides a hardware-relevant safety estimate and is reported alongside the full \ac{UER} throughout the results.
-    All \ac{UER} values reported in this thesis refer to the real \ac{UER} unless stated otherwise.
-\end{description}
-
-Standalone evaluation runs 480--640 episodes per configuration (60--80 per object) to produce stable metric estimates.
+\paragraph{Failure-mode decomposition.}
+Each episode is assigned a single terminal mode $m^\tau \in \mathcal{M} \cup \{\text{timeout}, \text{success}\}$.
+When multiple unsafe conditions trigger in the same time step, the first condition (by a fixed priority order) is recorded.
+Per-mode rates are reported as:
+%
+\begin{equation}\label{eq:failure_mode}
+    \text{FailRate}(m) = \frac{1}{N} \sum_{\tau=1}^{N} \mathbb{I}[m^\tau = m], \quad m \in \mathcal{M}.
+\end{equation}
+%
+This decomposition identifies which failure categories each distillation method is most prone to.
 
 %% =========================================================================
-\section{Experimental Design}%
+\section{Ablation Studies}%
 \label{sec:ablations}%
 
-This section describes the distillation experiments and the rationale behind their design.
-All experiments use the teacher from \cref{sec:teacher_training_setup} and the student architecture from \cref{sec:student_implementation}; each experiment isolates a single variable.
-
-\subsection{Distillation Method Comparison}%
-\label{sec:ablation_method}%
-
-The central experiment compares three distillation methods: \ac{BC}, DAgger, and SafeDAgger.
+The following ablation studies are conducted to justify the pipeline design.
+The teacher policy trained during the RL phase (\cref{sec:teacher_results}) is distilled into a vision-based student using three distillation variants: \ac{BC}, DAgger, and SafeDAgger.
 All three use the same teacher, student architecture, loss function, and training budget; only the data-collection strategy differs.
-\ac{BC} trains on a fixed offline dataset of teacher rollouts, DAgger iteratively collects data under the student's own policy, and SafeDAgger adds safety-aware gating (\cref{alg:safedagger}).
-This three-way comparison isolates the effect of the distillation algorithm on both task performance (\ac{GSR}) and training-time safety (\ac{UER}).
+We evaluate these variants in terms of lift-success growth, unsafe-episode rate, and intervention rate (defined as the fraction of time steps in which teacher takeover occurs, $\beta = \frac{1}{T}\sum_{t=0}^{T-1}\mathbb{I}[g_t = 1]$, averaged over evaluation episodes) during training.
+Since the \ac{UER} is the primary safety metric, we report not only the average rate across all test objects but also a per-object, failure-mode decomposition to assess each method under different failure conditions.
+Additionally, standalone student evaluations provide the final task performance after training.
 
 \subsection{Safety Threshold Sensitivity}%
 \label{sec:ablation_threshold}%
 
-SafeDAgger's behavior depends on the safety threshold $\delta$, which Zhang and Cho~\cite{Zhang2016} did not systematically analyze.
+SafeDAgger's behavior depends on the safety threshold $\delta$, which Zhang and Cho~\cite{Zhang2016} selected as a single value based on the error distribution of an initial supervised policy without systematic analysis.
+Following the principle from the original paper, $\delta$ should be calibrated so that approximately 20--30\,\% of environments trigger teacher intervention at the start of distillation, allowing the intervention rate to decay naturally as the student improves.
+
+The calibration proceeds by analyzing the distribution of per-environment L2 action disagreement $e_t = \|\hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}})\|_2$ during early training and selecting $\delta$ at a percentile that produces the target intervention rate.
 This work sweeps $\delta$ across the values 0.5, 2.0, and 3.0, with $\delta \to \infty$ recovering vanilla DAgger as the upper bound.
-Lower values trigger teacher intervention more aggressively, protecting the student from dangerous states at the cost of reduced autonomous exploration; higher values permit more student autonomy but weaken the safety benefit.
-The sweep is designed to identify the threshold that best balances task performance against training-time safety for the 23-dimensional action space used here.
+The results of this sweep are reported in \cref{sec:threshold_results}.
 
-\subsection{Effect of Domain Randomization during Distillation}%
-\label{sec:ablation_adr_distillation}%
+\subsection{Distillation Method Comparison}%
+\label{sec:ablation_method}%
 
-All baseline distillation runs disable physics randomization (ADR level~0).
-A follow-up experiment enables moderate randomization (ADR level~5) during distillation to test whether the student can tolerate physics variation while learning from a teacher trained to ADR~14.
-Both SafeDAgger and DAgger are run under identical randomization to determine whether safety-aware gating degrades more or less gracefully than uniform-coverage imitation when the training distribution becomes harder.
-
-\subsection{Effect of Environment Count}%
-\label{sec:ablation_envs}%
-
-Multi-object training requires sufficient parallel environments per object to produce stable per-object gradients.
-The environment count is varied from 24 (3~per object) to 32 (4~per object) to quantify the effect on distillation quality, following the same principle that guided teacher training where scaling from 16 to 512 environments resolved gradient oscillation.
+Using the optimal threshold ($\delta = 2.0$) identified from the safety threshold sensitivity ablation (\cref{sec:ablation_threshold}), the central experiment compares the three distillation methods.
+\ac{BC} trains on a fixed offline dataset of teacher rollouts, DAgger iteratively collects data under the student's own policy, and SafeDAgger adds safety-aware gating (\cref{alg:safedagger}).
 
 %% =========================================================================
 \section{Results, Graphs and Tables}%
@@ -428,66 +252,140 @@ The environment count is varied from 24 (3~per object) to 32 (4~per object) to q
 \subsection{Teacher Training Results}%
 \label{sec:teacher_results}%
 
-The teacher policy was trained on 13 objects from the VisDex dataset using 1{,}024 parallel environments with the sim-to-real-aware \ac{ADR} curriculum described in \cref{sec:sim2real_curriculum}.
-Training reached ADR level~14 after 33{,}000 epochs.
-The resulting teacher achieves 85.8\,\% \ac{GSR} and 12.1\,\% real \ac{UER} at nominal (ADR-0) physics, demonstrating reliable multi-object grasping with the hardware-realistic actuator constraints.
+The teacher policy was trained on 13 objects from the VisDex dataset using 1{,}024 parallel environments with a sim-to-real-aware \ac{ADR} curriculum.
+Training reached ADR level~14 after approximately 20{,}000 epochs and continued for 33{,}000 epochs total without further ADR progression.
+The resulting teacher achieves 85.8\,\% \ac{GSR} and 12.1\,\% \ac{UER} at nominal (ADR-0) physics, demonstrating reliable multi-object grasping with the hardware-realistic actuator constraints.
+\Cref{tab:teacher_eval} reports the full evaluation breakdown.
 This teacher is used for all distillation experiments reported below.
+
+\begin{table}[htb]
+    \centering
+    \caption{Teacher policy per-object evaluation (200 episodes per object, ADR-0 physics). Two objects (chicken head in car, train) failed to learn grasping.}
+    \label{tab:teacher_eval}
+    \small
+    \begin{tabular}{lrrrrr}
+        \toprule
+        \textbf{Object} & \textbf{Lift (\%)} & \textbf{UER (\%)} & \textbf{Coll. (\%)} & \textbf{OOB (\%)} & \textbf{Palm (\%)} \\
+        \midrule
+        basketball shoe       &  99.0 & 28.0 &  7.0 & 21.0 &  0.0 \\
+        closed fist           & 100.0 &  9.0 &  0.0 &  9.0 &  0.0 \\
+        elephant toy          & 100.0 &  3.0 &  2.0 &  0.5 &  0.5 \\
+        homer                 &  99.0 & 12.5 &  2.0 & 10.5 &  0.0 \\
+        mario                 &  98.0 &  2.0 &  0.0 &  1.0 &  0.0 \\
+        milk pot              &  96.5 &  5.5 &  0.5 &  5.0 &  0.0 \\
+        plane                 &  83.5 & 12.0 &  1.5 &  2.5 &  8.0 \\
+        teddy bear            &  99.5 & 15.0 &  0.5 & 14.5 &  0.0 \\
+        toy bagger            &  99.0 & 10.5 &  2.0 &  7.5 &  1.0 \\
+        toy cow               & 100.0 & 12.5 &  0.0 & 12.0 &  0.5 \\
+        turtle candle holder  & 100.0 & 24.5 &  0.0 & 24.0 &  0.0 \\
+        \midrule
+        chicken head in car   &   0.0 &  0.0 &  0.0 &  0.0 &  0.0 \\
+        train                 &   0.0 & 11.0 &  2.0 &  7.5 &  0.5 \\
+        \midrule
+        \textbf{Average (11 lifted)} & \textbf{97.7} & \textbf{12.2} & \textbf{1.4} & \textbf{9.8} & \textbf{0.9} \\
+        \textbf{Average (all 13)}    & \textbf{82.7} & \textbf{11.2} & \textbf{1.3} & \textbf{8.8} & \textbf{0.8} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+%% =========================================================================
+\subsection{Safety Threshold Results}%
+\label{sec:threshold_results}%
+
+\Cref{tab:threshold_sweep} summarizes the effect of the safety threshold $\delta$ on SafeDAgger distillation performance.
+An initial threshold of $\delta = 0.5$ (scaled from the original paper's steering-angle domain to the 23-dimensional action space) produced an intervention rate of $\sim$95\,\%, effectively reducing SafeDAgger to behavioral cloning and limiting \ac{GSR} to 61.3\,\%.
+At $\delta = 3.0$, the intervention rate dropped to $\sim$5\,\%, making SafeDAgger behave essentially like DAgger, with a \ac{GSR} of only 27.9\,\%.
+Analysis of the L2 distribution at early and late training (80th percentile: 2.6 early, 1.7 late) confirmed that $\delta = 2.0$ produces $\sim$30\,\% initial intervention decaying to $\sim$5\,\% at convergence, matching the target regime from the original SafeDAgger paper.
+This value achieves the highest \ac{GSR} (72.7\,\%) while maintaining the lowest \ac{UER} (30.2\,\%) and is used for all subsequent distillation experiments.
+
+\begin{table}[htb]
+    \centering
+    \caption{Effect of safety threshold $\delta$ on SafeDAgger distillation performance (100k iterations, 24 environments, 480 standalone evaluation episodes).}
+    \label{tab:threshold_sweep}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{$\delta$} & \textbf{Method} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} \\
+        \midrule
+        0.5       & SafeDAgger & 61.3 & 34.8 \\
+        2.0       & SafeDAgger & 72.7 & 30.2 \\
+        3.0       & SafeDAgger & 27.9 & 26.9 \\
+        $\infty$  & DAgger     & 71.7 & 32.7 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\Cref{fig:threshold_sweep} shows the intervention rate $\beta_{\text{safe}}$ over training for each threshold.
+At $\delta = 0.5$, the teacher intervenes in $\sim$70--80\,\% of environments throughout training, preventing the student from practicing autonomously.
+At $\delta = 2.0$, the intervention rate decays from $\sim$30\,\% to $\sim$10\,\% within 20k iterations, indicating rapid student autonomy.
+At $\delta = 3.0$, intervention is minimal from the start ($<$10\,\%), offering little safety benefit over vanilla DAgger.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.75\textwidth]{plots/safedagger_threshold/intervention_rate_threshold_sweep}
+    \caption{SafeDAgger intervention rate $\beta_{\text{safe}}$ over training iterations for different safety thresholds $\delta \in \{0.5, 2.0, 3.0\}$. Lower thresholds cause more aggressive teacher intervention. At $\delta = 2.0$, the rate decays rapidly, balancing safety with student autonomy.}
+    \label{fig:threshold_sweep}
+\end{figure}
 
 %% =========================================================================
 \subsection{Distillation Results}%
 \label{sec:distillation_results}%
 
-The distillation experiments vary the distillation method (SafeDAgger, DAgger), the safety threshold~$\delta$, the number of parallel environments, and whether \ac{ADR} is enabled during distillation.
-All experiments share the same teacher (85.8\,\% \ac{GSR}, 12.1\,\% real \ac{UER}), the same student architecture (ResNet-18 + cross-attention + LSTM-512), and the same loss (\cref{eq:total_loss}).
-The primary comparison uses 100{,}000 distillation iterations on an 8-object subset of the VisDex dataset with 24 parallel environments and $\delta = 2.0$ for SafeDAgger.
-\cref{tab:distillation_summary} summarizes all standalone evaluations.
+All distillation experiments share the same teacher (85.8\,\% \ac{GSR}, 12.1\,\% \ac{UER}), the same student architecture (ResNet-18 + cross-attention + LSTM-512), and the same loss (\cref{eq:total_loss}).
+The primary three-way comparison uses 100{,}000 distillation iterations on the 8-object VisDex subset.
+
+\subsubsection{Distillation Method Comparison}%
+\label{sec:dagger_results}%
+
+\Cref{tab:distillation_comparison} reports the evaluation metrics for BC, DAgger, and SafeDAgger ($\delta = 2.0$).
 
 \begin{table}[htb]
     \centering
-    \caption{Standalone student evaluations (480--640 episodes each). All runs use the same teacher and weighted L2 loss. \acs{UER} excludes physics instability.}
-    \label{tab:distillation_summary}
-    \begin{tabular}{llcccc}
+    \caption{BC vs.\ DAgger vs.\ SafeDAgger standalone evaluation (480 episodes).}
+    \label{tab:distillation_comparison}
+    \begin{tabular}{lcccc}
         \toprule
-        \textbf{Method} & \textbf{$\delta$} & \textbf{Envs} & \textbf{ADR} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} \\
+        \textbf{Metric} & \textbf{BC} & \textbf{DAgger} & \textbf{SafeDAgger} & \textbf{Teacher} \\
         \midrule
-        SafeDAgger & 0.5 & 24 & 0 & 61.3 & 34.8 \\
-        SafeDAgger & 2.0 & 24 & 0 & 72.7 & 30.2 \\
-        DAgger     & --  & 24 & 0 & 71.7 & 32.7 \\
-        \midrule
-        SafeDAgger & 2.0 & 32 & 0 & \textbf{79.2} & 37.5 \\
-        SafeDAgger & 2.0 & 32 & 5 & 63.9 & 34.1 \\
-        DAgger     & --  & 32 & 5 & 48.8 & 47.1 \\
-        \midrule
-        Teacher    & --  & -- & -- & 85.8 & 12.1 \\
+        \acs{GSR} (\%) & 87.8 & 71.7 & 72.7 & 85.8 \\
+        \acs{UER} (\%) & 41.8 & 32.7 & 30.2 & 12.1 \\
+        \quad Harmful collision (\%) & 19.3 & 12.5 & 16.2 & 1.7 \\
+        \quad Object out of bounds (\%) & 21.1 & 19.2 & 11.5 & 9.4 \\
+        \quad Palm flipped (\%) & 1.3 & 1.1 & 2.5 & 0.6 \\
+        \quad Hand too far (\%) & 0.0 & 0.0 & 0.0 & 0.0 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\subsubsection{DAgger vs.\ SafeDAgger Comparison}%
-\label{sec:dagger_results}%
+BC achieves the highest \ac{GSR} (87.8\,\%), matching the teacher within 2 percentage points.
+This is because BC trains exclusively on the teacher's state distribution, where the action-prediction problem is well-posed: the student learns to reproduce the teacher's actions with high fidelity for states the teacher actually visits.
+DAgger and SafeDAgger, by contrast, let the student act in the environment during training, exposing it to its own imperfect trajectories and forcing it to learn from a harder, shifting distribution.
+Because the lift success metric requires the object to be held above the threshold for at least 0.5\,s (30 consecutive steps), BC's high \ac{GSR} reflects genuinely sustained grasps, not brief accidental lifts.
+However, BC's \ac{UER} is substantially higher (41.8\,\% vs.\ 30.2\,\% for SafeDAgger and 32.7\,\% for DAgger): the student learns to grasp well but cannot maintain safe behavior when it inevitably drifts from the teacher's state distribution.
+Since the student never encounters its own out-of-distribution states during training, it does not learn recovery behaviors, resulting in a classic covariate-shift failure: high task accuracy paired with poor robustness at deployment.
 
-The primary comparison holds all variables constant except the distillation method: both SafeDAgger ($\delta = 2.0$) and DAgger use the same teacher, loss, architecture, and 100{,}000 training iterations on 24 environments.
-\cref{tab:dagger_comparison} reports the evaluation metrics and \cref{fig:run9_training_curves} shows the training curves.
+A checkpoint sweep (\cref{tab:bc_overfitting}) confirms that BC overfits: lift success peaks at 95.6\,\% after 50k iterations, then degrades to 85.6\,\% at 100k.
+The \ac{UER} remains consistently high (35--49\,\%) across all checkpoints, confirming that BC cannot learn safety behavior regardless of training duration.
 
 \begin{table}[htb]
     \centering
-    \caption{DAgger vs.\ SafeDAgger (24 environments, 480 standalone evaluation episodes). \acs{UER} and failure rates exclude physics instability.}
-    \label{tab:dagger_comparison}
-    \begin{tabular}{lccc}
+    \caption{BC checkpoint sweep (640 episodes per checkpoint, 32 environments). Lift success peaks at 50k iterations and degrades thereafter, while \acs{UER} remains consistently high.}
+    \label{tab:bc_overfitting}
+    \begin{tabular}{rcccccc}
         \toprule
-        \textbf{Metric} & \textbf{DAgger} & \textbf{SafeDAgger} & \textbf{Teacher} \\
+        \textbf{Iter} & \textbf{Lift (\%)} & \textbf{UER (\%)} & \textbf{Coll. (\%)} & \textbf{OOB (\%)} & \textbf{Palm (\%)} \\
         \midrule
-        \acs{GSR} (\%) & 71.7 & 72.7 & 85.8 \\
-        \acs{UER} (\%) & 32.7 & 30.2 & 12.1 \\
-        Harmful collision (\%) & 12.5 & 16.2 & 1.7 \\
-        Object out of bound (\%) & 19.2 & 11.5 & 9.4 \\
-        Palm flipped (\%) & 1.1 & 2.5 & 0.6 \\
+        10k  & 71.9 & 49.4 & 13.4 & 12.5 & 23.4 \\
+        25k  & 86.9 & 47.2 & 13.9 & 23.4 &  9.8 \\
+        \textbf{50k}  & \textbf{95.6} & 39.1 & 19.4 & 16.6 &  3.1 \\
+        75k  & 95.2 & 35.8 & 14.4 & 14.8 &  6.6 \\
+        100k & 85.6 & 40.1 & 20.6 & 18.0 &  1.6 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
 SafeDAgger and DAgger reach comparable \ac{GSR} (72.7\,\% vs.\ 71.7\,\%), recovering roughly 85\,\% of the teacher ceiling.
-SafeDAgger maintains a lower real \ac{UER} throughout training ($\sim$15--20\,\% vs.\ $\sim$30--40\,\% for DAgger, \cref{fig:run9_unsafe_rate}), with the largest difference in the ``object out of bound'' failure category (11.5\,\% vs.\ 19.2\,\%).
+SafeDAgger maintains a lower \ac{UER} throughout training ($\sim$15--20\,\% vs.\ $\sim$30--40\,\% for DAgger, \cref{fig:run9_unsafe_rate}), with the largest difference in the object out of bounds category (11.5\,\% vs.\ 19.2\,\%).
+\Cref{fig:run9_training_curves} shows the training curves and intervention rate for all three methods.
 
 \begin{figure}[htbp]
     \centering
@@ -501,169 +399,149 @@ SafeDAgger maintains a lower real \ac{UER} throughout training ($\sim$15--20\,\%
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\textwidth]{plots/run9/unsafe_episode_rate}
-        \caption{Real unsafe episode rate (excl.\ physics).}
+        \caption{Unsafe episode rate.}
         \label{fig:run9_unsafe_rate}
     \end{subfigure}
-    \caption{Run~9 training curves comparing SafeDAgger (run~9a, blue) and DAgger (run~9b, orange) with teacher~11. SafeDAgger achieves higher lift success relative to the teacher and a lower real-world-relevant unsafe episode rate throughout training.}
+
+    \vspace{0.5em}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/intervention_rate}
+        \caption{SafeDAgger intervention rate $\beta_{\text{safe}}$.}
+        \label{fig:intervention_rate}
+    \end{subfigure}
+    \caption{Training curves comparing SafeDAgger (blue), DAgger (orange), and BC (green). (a)~Lift success relative to the teacher. (b)~Unsafe episode rate. (c)~SafeDAgger intervention rate, decaying from $\sim$0.7 to $\sim$0.1 within 20k iterations. DAgger has no intervention ($\beta = 0$); BC always uses the teacher ($\beta = 1$).}
     \label{fig:run9_training_curves}
 \end{figure}
 
 \subsubsection{Safety Analysis}%
 \label{sec:safety_analysis}%
 
-Run~9 confirms that SafeDAgger produces safer students than vanilla DAgger.
-As shown in \cref{fig:run9_unsafe_rate}, SafeDAgger maintains a real unsafe episode rate (excluding physics instability) of $\sim$15--20\% throughout training, compared to $\sim$30--40\% for DAgger.
-The remaining real-world-relevant failures are primarily \texttt{harmful\_collision} (hand contacting table surface) and \texttt{object\_out\_of\_bound} (object knocked off workspace).
+The three-way comparison reveals a clear trade-off between task performance and training-time safety.
+BC maximizes lift success but produces the most unsafe student at evaluation time (41.8\,\% \ac{UER}), because the student never practices recovery from its own mistakes during training.
+DAgger reduces the \ac{UER} to 32.7\,\% through online distribution correction but allows the student to visit dangerous states freely.
+SafeDAgger further reduces the \ac{UER} to 30.2\,\% by intercepting dangerous actions during training, while matching DAgger's task performance.
+As shown in \cref{fig:intervention_rate}, the SafeDAgger intervention rate $\beta_{\text{safe}}$ decays from $\sim$0.7 to $\sim$0.1 within 20k iterations, indicating the student acts autonomously in $\sim$90\,\% of environments for the majority of training.
 
-\cref{fig:per_object_failure_safedagger,fig:per_object_failure_dagger} show the per-object failure mode evolution over training for SafeDAgger and DAgger, respectively.
-These plots decompose the unsafe episodes into four categories (object out of bounds, harmful collision, palm flip, and physics instability) for each evaluation object.
-SafeDAgger exhibits lower harmful collision rates and faster reduction of collision-related failures during training, particularly on objects where DAgger's unrestricted exploration causes persistent contact with the table surface.
+\Cref{fig:failure_modes_grid} shows the per-failure-mode comparison for three representative objects.
+On the basketball shoe, DAgger's harmful collision rate remains persistently high ($\sim$25\,\%) throughout training, while SafeDAgger reduces it to $\sim$5\,\% after 20k iterations.
+On the teddy bear, DAgger's object out of bounds rate fluctuates between 30--45\,\%, whereas SafeDAgger stabilizes at $\sim$15\,\%.
+The toy bagger shows a dramatic early collision spike for DAgger ($\sim$55\,\%) that SafeDAgger avoids entirely through teacher intervention.
+BC shows low training-time failure rates because the teacher drives the environment, but the student inherits none of this robustness at evaluation time.
+The complete per-object failure mode breakdowns for all methods and objects are provided in \cref{app:per_object_failure}.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_safedagger}
-    \caption{Per-object failure mode breakdown over distillation iterations for SafeDAgger (run~9a). Each subplot shows one evaluation object, with failure categories: object out of bounds (orange), harmful collision (gray), palm flip (purple), and physics instability (red).}
-    \label{fig:per_object_failure_safedagger}
+    % Row 1: Basketball shoe
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_basketball_shoe_harmful_collision}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_basketball_shoe_object_out_of_bound}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_basketball_shoe_palm_flipped}
+    \end{subfigure}
+
+    \vspace{0.3em}
+    % Row 2: Teddy bear
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_teddy_bear_harmful_collision}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_teddy_bear_object_out_of_bound}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_teddy_bear_palm_flipped}
+    \end{subfigure}
+
+    \vspace{0.3em}
+    % Row 3: Toy bagger
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_toy_bagger_harmful_collision}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_toy_bagger_object_out_of_bound}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run9/single_object_reason/single_toy_bagger_palm_flipped}
+    \end{subfigure}
+    \caption{Per-object failure mode decomposition over distillation iterations for three representative objects (rows: basketball shoe, teddy bear, toy bagger; columns: harmful collision, object out of bounds, palm flip). SafeDAgger (blue) consistently reduces failure rates compared to DAgger (orange), with the largest margins on collision-prone objects.}
+    \label{fig:failure_modes_grid}
 \end{figure}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_dagger}
-    \caption{Per-object failure mode breakdown over distillation iterations for DAgger (run~9b). Compared to SafeDAgger (\cref{fig:per_object_failure_safedagger}), DAgger shows higher and more persistent harmful collision rates across most objects.}
-    \label{fig:per_object_failure_dagger}
-\end{figure}
+\subsubsection{Visual Representation Quality}%
+\label{sec:aux_loss_analysis}%
 
-\subsubsection{Intervention Analysis}%
-\label{sec:intervention_analysis}%
-
-The SafeDAgger intervention rate $\beta_{\text{safe}}$ decays rapidly in run~9 as the student improves.
-\cref{fig:intervention_rate} shows that $\beta_{\text{safe}}$ drops from $\sim$0.7 at initialization to $\sim$0.1 within 20k iterations, indicating the student acts autonomously in $\sim$90\% of environments for the majority of training.
-This rapid decay confirms that teacher~11's cleaner demonstrations enable fast student autonomy.
+The student network includes an auxiliary head that regresses the 3D object position from stereo images (\cref{eq:total_loss}).
+Since the vision backbone and regression target are identical across all three methods, comparing the auxiliary loss isolates the effect of the training state distribution on visual feature learning.
+\Cref{fig:aux_loss} shows that SafeDAgger and BC converge to nearly identical auxiliary loss values ($\sim$0.011 and $\sim$0.010, corresponding to $\sim$1\,cm object localization error), while DAgger's loss remains $\sim$1.7$\times$ higher ($\sim$0.018).
+This gap arises because the DAgger student drives the environment itself, producing arm and hand configurations that differ from the teacher's trajectories and therefore generating camera viewpoints that are harder for the vision backbone to interpret.
+Despite this gap, all three methods achieve object localization errors on the order of 1--2\,cm, indicating that the stereo vision backbone learns useful spatial representations regardless of the data-collection strategy.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\textwidth]{plots/run9/intervention_rate}
-    \caption{SafeDAgger intervention rate $\beta_{\text{safe}}$ over distillation iterations (run~9a). The rate decays rapidly to $\sim$0.1, indicating the student acts autonomously in $\sim$90\% of environments. DAgger (run~9b) has no intervention mechanism ($\beta = 0$ by definition).}
-    \label{fig:intervention_rate}
+    \includegraphics[width=0.7\textwidth]{plots/run9/aux_loss_object_pos}
+    \caption{Auxiliary object-position regression loss over distillation iterations. SafeDAgger (blue) and BC (green) converge to similar values ($\sim$0.01), while DAgger (orange) remains $\sim$1.7$\times$ higher due to off-distribution viewpoints from student-driven rollouts.}
+    \label{fig:aux_loss}
 \end{figure}
 
 \subsubsection{Per-Object Performance Breakdown}%
 \label{sec:per_object_results}%
 
-The 8 evaluation objects span a range of geometries, from compact, graspable shapes such as the closed fist and teddy bear, to thin or irregular objects such as the toy bagger and basketball shoe.
-To identify which object categories benefit most from SafeDAgger's intervention mechanism, both student policies are evaluated per-object.
-
-\cref{fig:per_object_lift_eval} shows the per-object lift success for SafeDAgger (run~9a) and DAgger (run~9b).
-Performance varies substantially across objects: compact shapes such as the elephant toy and mario achieve high lift success ($>$80\%) for both methods, while thin or asymmetric objects such as the basketball shoe show larger gaps.
-\cref{fig:per_object_unsafe_eval} shows the corresponding real unsafe episode rates, where SafeDAgger consistently exhibits lower rates across most objects.
+The 8 evaluation objects span a range of geometries, from compact shapes (closed fist, teddy bear) to thin or irregular objects (toy bagger, basketball shoe).
+\Cref{fig:per_object_eval} shows the per-object lift success and unsafe episode rates for all three methods.
+Performance varies substantially across objects: compact shapes achieve high lift success ($>$80\,\%) for all methods, while asymmetric objects show larger gaps.
+SafeDAgger consistently exhibits lower unsafe rates across most objects compared to both DAgger and BC.
 
 \begin{figure}[htbp]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}
+    \begin{subfigure}[b]{0.85\textwidth}
         \centering
         \includegraphics[width=\textwidth]{plots/run9/per_object_lift_eval}
         \caption{Per-object lift success.}
         \label{fig:per_object_lift_eval}
     \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
+
+    \vspace{0.5em}
+    \begin{subfigure}[b]{0.85\textwidth}
         \centering
         \includegraphics[width=\textwidth]{plots/run9/per_object_unsafe_eval}
-        \caption{Per-object real unsafe rate.}
+        \caption{Per-object unsafe rate.}
         \label{fig:per_object_unsafe_eval}
     \end{subfigure}
-    \caption{Per-object evaluation of run~9 students (SafeDAgger run~9a in blue, DAgger run~9b in orange). (a)~Lift success varies by object geometry, with compact shapes performing best. (b)~SafeDAgger exhibits lower real unsafe episode rates across most objects.}
+    \caption{Per-object standalone evaluation of BC (green), DAgger (orange), and SafeDAgger (blue). (a)~Lift success varies by object geometry, with compact shapes performing best. BC achieves the highest lift but at the cost of safety. (b)~SafeDAgger exhibits lower unsafe episode rates across most objects.}
     \label{fig:per_object_eval}
 \end{figure}
 
-\cref{fig:per_object_lift_h2h,fig:per_object_unsafe_h2h} provide a more detailed view by showing the per-object training curves over distillation iterations.
-These reveal that the performance gap between SafeDAgger and DAgger is not uniform: on objects such as the teddy bear and milk pot, SafeDAgger converges to noticeably higher lift success, while on others (e.g., turtle candle holder) both methods perform similarly.
-The per-object unsafe rate curves show that SafeDAgger achieves consistently lower collision rates on most objects, with the largest safety margins on objects where DAgger produces aggressive approach behaviors.
+\Cref{fig:per_object_lift_h2h,fig:per_object_unsafe_h2h} provide a more detailed view by showing the per-object training curves over distillation iterations.
+The performance gap between methods is not uniform: on objects such as the teddy bear and milk pot, SafeDAgger converges to noticeably higher lift success, while on others (e.g., turtle candle holder) all three methods perform similarly.
+The per-object unsafe rate curves show that SafeDAgger achieves consistently lower collision rates on most objects, with the largest safety margins on objects where DAgger and BC produce aggressive approach behaviors.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_lifted_head_to_head}
-    \caption{Per-object lift success over distillation iterations for SafeDAgger (blue) and DAgger (orange). Each subplot shows one of the 8 evaluation objects from run~9.}
+    \caption{Per-object lift success over distillation iterations for SafeDAgger (blue), DAgger (orange), and BC (green). Each subplot shows one of the 8 evaluation objects.}
     \label{fig:per_object_lift_h2h}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{plots/run9/per_object_unsafe_episode_head_to_head}
-    \caption{Per-object real unsafe episode rate (excl.\ physics instability) over distillation iterations for SafeDAgger (blue) and DAgger (orange). SafeDAgger consistently achieves lower unsafe rates on most objects.}
+    \caption{Per-object unsafe episode rate over distillation iterations for SafeDAgger (blue), DAgger (orange), and BC (green). SafeDAgger consistently achieves lower unsafe rates on most objects.}
     \label{fig:per_object_unsafe_h2h}
 \end{figure}
 
-\subsubsection{Scaling Environments and ADR-Randomised Distillation (Runs~10--11)}%
-\label{sec:run10_run11}%
-
-Building on the run~9 baseline, two follow-up experiments push the SafeDAgger student further: run~10b raises the per-object environment count, and run~11a/b probes whether moderate physics randomisation during distillation is tolerable.
-Both reuse the run~9 configuration (teacher~11, weighted L2 loss, $\delta = 2.0$, visdex\_top8, 100k iterations, 10\,s episodes) and modify a single variable.
-
-\paragraph{Run~10b — 32 environments (4 envs per object).}
-Increasing the parallel environment count from 24 ($3 \times 8$) to 32 ($4 \times 8$) yields the strongest student in this work: \textbf{79.2\,\% \acs{GSR}} on the 8-object evaluation set, reaching $92.3\,\%$ of the teacher's 85.8\,\% ceiling.
-Real \acs{UER} (excluding physics instability) is essentially unchanged compared with run~9a (64.6\,\% vs.\ 62.7\,\% over all eval episodes).
-The improvement is consistent with the multi-object teacher finding in \cref{sec:ablation_envs}: cleaner per-object gradients dominate the trade-off against per-iteration wall-clock cost.
-A parallel ablation (run~10a) re-enabled visual and arm-pose randomisation at 24 environments and lost roughly 10~percentage points of training lift success compared with run~9a, indicating that visual diversity adds learning difficulty without matching the standalone evaluation conditions, and is best deferred to the sim2real curriculum.
-
-\paragraph{Run~11a/b — Distillation under \acs{ADR}~5.}
-All distillation runs up to this point disabled domain randomisation (ADR~0).
-Run~11a (SafeDAgger) and run~11b (DAgger) repeat the run~10b configuration but enable \texttt{starting\_adr\_increments\,=\,5}, exposing the student to moderate friction, mass, and stiffness randomisation while the teacher (trained to ADR~14) still provides reliable supervision.
-Both methods degrade compared with their ADR-0 counterparts, but the relative drop differs sharply: SafeDAgger falls from 79.2\,\% to 63.9\,\% \acs{GSR} ($-15.3$\,pp), while DAgger falls from 71.7\,\% to 48.8\,\% ($-22.9$\,pp).
-The DAgger student's collision rate roughly doubles (12.5\,\% to 25.9\,\% of all evaluation episodes), whereas SafeDAgger's collision rate grows more modestly.
-Within the time budget of this thesis, neither method recovers the ADR-0 performance under randomisation, suggesting that distillation under ADR requires longer schedules.
-The asymmetric degradation, however, provides direct evidence for the SafeDAgger robustness hypothesis stated in \cref{sec:dagger_results}: query-aware imitation is less brittle to distribution shifts in the environment than uniform-coverage imitation.
-
-\cref{tab:run10_run11_results} consolidates the run~10/11 standalone evaluation numbers alongside the run~9 baseline and teacher~11 ceiling.
-\cref{fig:run10b_lift,fig:run11_lift} show the lift-success training curves for the new runs, and \cref{fig:run10b_vs_run11_per_object} compares per-object lift between the best ADR-0 student (run~10b) and the ADR-5 students.
-
-\begin{table}[H]
-    \centering
-    \caption{Standalone evaluation of distillation runs~9--11 against teacher~11. Lift success and \acs{UER} (real, excluding physics instability) are reported over 480--640 episodes on the 8-object set. \emph{Best student in bold.}}
-    \label{tab:run10_run11_results}
-    \begin{tabular}{llcccc}
-        \toprule
-        \textbf{Run} & \textbf{Method} & \textbf{Envs} & \textbf{ADR} & \textbf{\acs{GSR} (\%)} & \textbf{Real \acs{UER} (\%)} \\
-        \midrule
-        Teacher~11 & PPO  & --- & 14 & 85.8 & 12.1 \\
-        \midrule
-        9a   & SafeDAgger & 24 & 0 & 72.7 & 30.2 \\
-        9b   & DAgger     & 24 & 0 & 71.7 & 32.7 \\
-        10a  & SafeDAgger & 24 & 0 & 62.3 & 36.2 \\
-        \textbf{10b} & \textbf{SafeDAgger} & \textbf{32} & \textbf{0} & \textbf{79.2} & \textbf{37.5} \\
-        11a  & SafeDAgger & 32 & 5 & 63.9 & 34.1 \\
-        11b  & DAgger     & 32 & 5 & 48.8 & 47.1 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\begin{figure}[htbp]
-    \centering
-    \begin{minipage}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/run10/lift_success_normed}
-        \caption{Run~10b lift success over distillation iterations. SafeDAgger with 32 environments reaches the highest student lift success (79.2\,\%) recorded in this work.}
-        \label{fig:run10b_lift}
-    \end{minipage}\hfill
-    \begin{minipage}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/run11/lift_success_normed}
-        \caption{Run~11 lift success under \acs{ADR}~5 randomisation. SafeDAgger (blue) degrades less than DAgger (orange) when the student is exposed to randomised physics during distillation.}
-        \label{fig:run11_lift}
-    \end{minipage}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{plots/comparisons/run10b_vs_run11_per_object_lift}
-    \caption{Per-object lift success at standalone evaluation: run~10b (SafeDAgger, ADR~0, 32 envs) versus run~11a (SafeDAgger, ADR~5) and run~11b (DAgger, ADR~5). Enabling \acs{ADR}~5 during distillation hurts both methods on every object, but the gap to the ADR-0 best is consistently smaller for SafeDAgger.}
-    \label{fig:run10b_vs_run11_per_object}
-\end{figure}
-
-\paragraph{Summary.}
-The best student policy in this thesis is run~10b: SafeDAgger with 32~environments, $\delta = 2.0$, no \acs{ADR} during distillation.
-It closes 92\,\% of the gap to teacher~11 on lift success and provides the strongest baseline for the eventual hardware deployment.
-Run~11 indicates that ADR-randomised distillation is feasible but requires schedules longer than 100k iterations, and reinforces the SafeDAgger robustness advantage already visible in the run~9 head-to-head.
+Additional experiments on environment scaling and ADR-randomised distillation are reported in \cref{app:scaling_adr}.
 
 %% =========================================================================
 \section{Summary of Findings}%
@@ -672,11 +550,12 @@ Run~11 indicates that ADR-randomised distillation is feasible but requires sched
 The key experimental findings are:
 
 \begin{enumerate}
-    \item \textbf{SafeDAgger and DAgger achieve comparable \ac{GSR}.}  SafeDAgger (72.7\,\%) and DAgger (71.7\,\%) reach similar grasp success rates, recovering roughly 85\,\% of the teacher ceiling (85.8\,\%). The best student (SafeDAgger with 32 environments) reaches 79.2\,\%, closing 92\,\% of the gap.
-    \item \textbf{SafeDAgger produces safer students.}  The real \ac{UER} is 30.2\,\% for SafeDAgger vs.\ 32.7\,\% for DAgger at evaluation.  During training, the gap is more pronounced: SafeDAgger maintains $\sim$15--20\,\% real unsafe rate vs.\ $\sim$30--40\,\% for DAgger.
-    \item \textbf{SafeDAgger degrades more gracefully under domain randomization.}  Under ADR-5 distillation, SafeDAgger drops by $-15.3$ percentage points vs.\ $-22.9$ for DAgger, indicating that safety-aware gating becomes more valuable as the training distribution becomes harder.
-    \item \textbf{Safety threshold $\delta = 2.0$ provides the best balance.}  Among the tested thresholds (0.5, 2.0, 3.0), $\delta = 2.0$ allows the intervention rate to decay rapidly while maintaining teacher guidance on challenging states.
+    \item \textbf{Online distribution correction is essential for safe distillation.}  BC achieves the highest \ac{GSR} (87.8\,\%), matching the teacher, but produces the highest \ac{UER} (41.8\,\%).  The student learns to grasp well from the teacher's state distribution but cannot maintain safe behavior when it drifts, confirming the covariate-shift problem in privileged policy distillation.
+    \item \textbf{SafeDAgger matches DAgger's task performance while improving safety.}  SafeDAgger (72.7\,\% \ac{GSR}) and DAgger (71.7\,\%) recover roughly 85\,\% of the teacher ceiling with comparable task performance.  However, SafeDAgger achieves a lower \ac{UER} (30.2\,\% vs.\ 32.7\,\%) at evaluation and maintains $\sim$15--20\,\% unsafe rate during training compared to $\sim$30--40\,\% for DAgger.
+    \item \textbf{SafeDAgger's safety advantage is most pronounced on collision-prone objects.}  The per-object failure mode decomposition reveals that SafeDAgger reduces harmful collision rates by up to 20 percentage points on objects such as the basketball shoe and toy bagger, where DAgger's unrestricted exploration causes persistent contact with the table surface.
+    \item \textbf{BC overfits with extended training.}  Lift success peaks at 95.6\,\% after 50k iterations and degrades to 85.6\,\% at 100k, while the \ac{UER} remains consistently high (35--49\,\%) regardless of training duration.
+    \item \textbf{Safety threshold $\delta = 2.0$ provides the best balance.}  Calibrated from the L2 action-disagreement distribution, $\delta = 2.0$ produces $\sim$30\,\% initial intervention decaying to $\sim$5\,\% at convergence, balancing student autonomy with teacher guidance on challenging states.
 \end{enumerate}
 
-Additional implementation findings related to LSTM checkpoint behaviour, physics stability, and teacher--student observation mapping are discussed in \cref{sec:impl_details}.
+Additional implementation findings related to physics stability and teacher--student observation mapping are discussed in \cref{sec:impl_details}.
 %

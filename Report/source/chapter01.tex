@@ -18,7 +18,7 @@ However, transferring these policies to real hardware introduces a fundamental c
 
 The dominant strategy to bridge this gap is \emph{policy distillation}, in which a privileged \emph{teacher} policy is trained in simulation with full state access and its behavior is then distilled into a \emph{student} policy that operates from realistic sensor inputs~\cite{Singh2025, Lum2024}.
 The DAgger algorithm~\cite{Ross2011} is widely used for this distillation step, as it addresses the distribution shift between expert demonstrations and student-induced trajectories through iterative data aggregation.
-Yet standard DAgger is agnostic to safety: it queries the teacher uniformly, including in states where the student already performs well, and does not prevent the student from visiting dangerous states during training.
+Yet DAgger is agnostic to safety: it queries the teacher uniformly, including in states where the student already performs well, and does not prevent the student from visiting dangerous states during training.
 For dexterous hands, where unsafe actions can cause hardware damage (e.g., jamming or overloading finger joints) or lead to unstable contact configurations, a safety-aware distillation procedure is desirable.
 
 \section{Problem Statement}%

@@ -45,7 +45,7 @@ The remainder of this chapter formalizes both stages.
 \label{sec:privileged_teacher}%
 
 The teacher is trained via \ac{PPO} on an asymmetric actor--critic architecture that exploits privileged state information at training time while keeping the actor restricted to the observations that will be available at distillation time.
-\cref{fig:teacher_training} illustrates the overall teacher training pipeline.
+\Cref{fig:teacher_training} illustrates the overall teacher training pipeline.
 
 \begin{figure}[htb]
     \centering
@@ -75,7 +75,7 @@ This asymmetry allows the critic to use richer information for more accurate val
 In effect, the privileged information is consumed by the critic to shape gradients but never directly enters the deployed policy.
 
 In the dexterous grasping scenario studied in this thesis, the asymmetry is particularly pronounced.
-\cref{tab:ac_observations} summarizes the observation components for actor and critic.
+\Cref{tab:ac_observations} summarizes the observation components for actor and critic.
 The critic observes the full simulation state, including per-fingertip positions and velocities, object velocity, contact forces, and measured joint torques, none of which are available on the real robot.
 The actor, by contrast, receives only proprioceptive measurements and a scalar object identifier that tells the agent which object it is currently manipulating, which are the same inputs that the student will later receive alongside its RGB images.
 Because the critic is discarded after training, the privileged information it consumes does not affect the deployed policy~\cite{Pinto2018}.
@@ -83,7 +83,7 @@ The teacher's actor therefore already operates on the same proprioceptive interf
 
 \begin{table}[htb]
     \centering
-    \caption{Observation components for the asymmetric actor--critic. The actor receives only information available on the real robot; the critic additionally receives privileged simulation state. Exact dimensions are given in \cref{sec:obs_space}.}
+    \caption{Observation components for the asymmetric actor--critic. The actor receives only information available on the real robot; the critic additionally receives privileged simulation state.}
     \label{tab:ac_observations}
     \small
     \begin{tabular}{lcc}
@@ -106,6 +106,10 @@ The teacher's actor therefore already operates on the same proprioceptive interf
     \end{tabular}
 \end{table}
 
+The action space is 23-dimensional, consisting of joint position targets for all 7 arm joints and 16 hand joints.
+Actions are scaled from the policy's normalized output $a_t \in [-1, 1]^{23}$ to absolute joint position targets using per-joint scaling factors.
+The policy directly commands joint positions without geometric fabrics or motion primitives, which distinguishes this work from the FGP-based approach in DextrAH-RGB~\cite{Singh2025}.
+
 \subsection{Reward Structure}%
 \label{sec:reward_structure}%
 
@@ -117,29 +121,33 @@ The reward function decomposes as a signed, weighted sum of $K$ terms,
 %
 where each $r_i \geq 0$ is a non-negative per-term reward and $\operatorname{sign}_i$ determines whether the term acts as an incentive ($+$) or a penalty ($-$).
 Positive terms encourage desired behavior, while negative terms penalize undesirable behavior.
-\Cref{tab:reward_overview} summarizes the reward and penalty terms used in this thesis; the concrete weights and functional forms are implementation choices and are detailed in \cref{sec:reward_implementation}.
+\Cref{tab:reward_terms} summarizes the reward and penalty terms used in this thesis, including their functional forms and weights.
+The lift and goal terms are gated by a contact mask $m_c$, ensuring the policy only receives reward for lifting when actually grasping the object rather than accidentally launching it.
+Hand joints are penalized $1.5\times$ more than arm joints for action rate and $3\times$ more for joint velocity, encouraging smooth finger motions.
 
 \begin{table}[htb]
     \centering
-    \caption{Reward and penalty terms used in the teacher's reward function (\cref{eq:reward}). Concrete weights and functional forms are given in \cref{sec:reward_implementation}.}
-    \label{tab:reward_overview}
+    \caption{Reward terms for teacher policy training. $d$ denotes hand-to-object distance, $\theta$ the palm alignment angle, $n_c$ the number of finger contacts, $m_c$ a binary contact mask, $\Delta a$ the action delta, and $\dot{q}$ joint velocities. Weights marked $\star$ are ADR-modulated; ranges give the endpoints.}
+    \label{tab:reward_terms}
     \small
-    \begin{tabular}{lcl}
+    \begin{tabular}{lp{3.0cm}lc}
         \toprule
-        \textbf{Term} & \textbf{Sign} & \textbf{Purpose} \\
+        \textbf{Term} & \textbf{Purpose} & \textbf{Form} & \textbf{Weight} \\
         \midrule
-        $r_{\text{hand}}$    & $+$ & Guides the hand toward the object \\
-        $r_{\text{palm}}$    & $+$ & Aligns the palm with a grasp-ready orientation \\
-        $r_{\text{curl}}$    & $-$ & Penalizes excessive finger curling to encourage an open-hand approach \\
-        $r_{\text{contact}}$ & $+$ & Rewards hand-object contact \\
-        $r_{\text{grasp}}$   & $+$ & Bonus for thumb plus at least one opposing finger in contact \\
-        $r_{\text{lift}}$    & $+$ & Rewards vertical lifting after stable contact \\
-        $r_{\text{goal}}$    & $+$ & Rewards moving the object to the target pose \\
-        $r_{\text{time}}$    & $+$ & Small time reward while the hand stays near the object \\
-        $r_{\text{success}}$ & $+$ & Bonus for entering and remaining in the goal region \\
-        $r_{\text{action}}$  & $-$ & Penalizes large joint action deltas \\
-        $r_{\text{vel}}$     & $-$ & Penalizes high joint velocities \\
-        $r_{\text{term}}$    & $-$ & Penalty for early termination without prior contact \\
+        $r_{\text{hand}}$    & Hand-to-object approach         & $w \cdot e^{-\alpha d}$             & $+4.0$ \\
+        $r_{\text{palm}}$    & Palm alignment                  & $-w \cdot \theta^2$                 & $+0.7$ \\
+        $r_{\text{curl}}$    & Finger curl penalty             & $-w \cdot \|q - q_{\text{ref}}\|^2$ & $0.3 \to 0.8^{\star}$ \\
+        \midrule
+        $r_{\text{contact}}$ & Hand-object contact             & $w \cdot n_c$                       & $+3.0$ \\
+        $r_{\text{grasp}}$   & Thumb + finger in contact       & $w \cdot \mathbb{1}[\text{thumb} \wedge \text{finger}]$ & $+3.0$ \\
+        $r_{\text{lift}}$    & Lift after stable contact       & $w \cdot e^{-\alpha |z - z_g|} \cdot m_c$ & $40 \to 30^{\star}$ \\
+        $r_{\text{goal}}$    & Object-to-goal distance         & $w \cdot e^{-\alpha d_g} \cdot m_c$ & $+40.0$ \\
+        $r_{\text{time}}$    & Proximity time bonus            & $w \cdot \mathbb{1}[d < 0.2]$       & $+0.005$ \\
+        $r_{\text{success}}$ & Goal region bonus               & $w \cdot \mathbb{1}[\text{at goal}]$ & $+20.0$ \\
+        \midrule
+        $r_{\text{action}}$  & Action rate penalty             & $-w \cdot \|\Delta a\|^2$           & $0.01$ \\
+        $r_{\text{vel}}$     & Joint velocity penalty          & $-w \cdot \|\dot{q}\|^2$           & $5 \!\cdot\! 10^{-4}$ \\
+        $r_{\text{term}}$    & Early termination penalty       & $-w \cdot \mathbb{1}[\text{no contact}]$ & $1.0$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -157,7 +165,7 @@ Whenever the policy's rolling success rate exceeds a threshold $\tau_{\text{ADR}
 \end{equation}
 %
 yielding an emergent curriculum from near-nominal physics to progressively more challenging conditions.
-The concrete schedule and parameter ranges are reported in \cref{sec:adr_implementation}.
+The concrete schedule and parameter ranges are reported in \cref{ch:experiments}.
 
 %% =========================================================================
 \section{Policy Distillation}%
@@ -165,7 +173,7 @@ The concrete schedule and parameter ranges are reported in \cref{sec:adr_impleme
 
 Given a trained teacher $\pi^*$ operating on privileged observations, the goal of distillation is to train a student policy $\hat{\pi}_\theta : \mathcal{O}^{\text{partial}} \to \mathcal{A}$ that imitates $\pi^*$ using only the partial observations available at deployment.
 This section presents the distillation algorithms (DAgger and its safety-aware variant SafeDAgger) and the visual encoder architecture used when the student operates on RGB images.
-\cref{fig:student_training} illustrates the overall student distillation pipeline.
+\Cref{fig:student_training} illustrates the overall student distillation pipeline.
 
 \begin{figure}[htb]
     \centering

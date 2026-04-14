@@ -1,4 +1,205 @@
-\chapter{Appendix 1}%
-\Blindtext%
-%
+\chapter{Training Configuration and Domain Randomization}%
+\label{app:training_config}%
+
+\section{PPO Hyperparameters}%
+\label{app:ppo_hyperparams}%
+
+\Cref{tab:ppo_hyperparams} lists the \ac{PPO} hyperparameters used for teacher policy training.
+
+\begin{table}[htb]
+    \centering
+    \caption{PPO hyperparameters for teacher training.}
+    \label{tab:ppo_hyperparams}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Hyperparameter} & \textbf{Value} \\
+        \midrule
+        Learning rate & $1 \times 10^{-4}$ \\
+        Clip parameter $\epsilon$ & 0.2 \\
+        Mini-epochs per update & 4 \\
+        Horizon length & 16 steps \\
+        Minibatch size & 2048 \\
+        Discount factor $\gamma$ & 0.99 \\
+        GAE $\lambda$ & 0.95 \\
+        Number of environments & 1{,}024 \\
+        Max training epochs & 33{,}000 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Network Architecture}%
+\label{app:network_architecture}%
+
+The teacher policy uses an \ac{LSTM}-based recurrent network implemented in rl\_games.
+The actor consists of an MLP encoder followed by an LSTM layer with 1024 hidden units, followed by an output head mapping to the 23-dimensional action space.
+The critic has an identical architecture but receives the larger critic observation (\cref{tab:ac_observations}).
+
+The student uses a vision--proprioception fusion architecture:
+\begin{enumerate}
+    \item \textbf{Visual encoder:} A ResNet-18 backbone processes each stereo image independently, producing a 32-dimensional feature vector per image.
+    \item \textbf{Cross-attention fusion:} A cross-attention transformer module fuses the two stereo features into a single 64-dimensional visual embedding.
+    \item \textbf{Policy head:} The visual embedding is concatenated with the proprioceptive state vector and fed into an \ac{LSTM} with 512 hidden units, followed by a linear output layer producing the 23-dimensional action.
+\end{enumerate}
+
+\section{Automatic Domain Randomization Parameters}%
+\label{app:adr_params}%
+
+\Cref{tab:adr_params} lists the key randomized parameters and their start/max ranges.
+The maximum ranges for finger joint stiffness and damping correspond to values measured on the real Agile Hand hardware using an Isaac Lab gain tuner.
+The thumb rotation velocity limit is ramped down toward the real hardware limit of approximately 12\,deg/s ($\approx 0.21$\,rad/s).
+All \ac{ADR} parameters share a single increment counter ($N_{\text{max}} = 50$, success threshold $\tau_{\text{ADR}} = 0.4$), meaning all parameters progress together.
+
+\begin{table}[htb]
+    \centering
+    \caption{Automatic Domain Randomization parameters.}
+    \label{tab:adr_params}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Parameter} & \textbf{Start Range} & \textbf{Max Range} \\
+        \midrule
+        Object mass scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Object friction (static) & $[1.0, 1.0]$ & $[0.5, 1.5]$ \\
+        Robot restitution & $[1.0, 1.0]$ & $[0.8, 1.0]$ \\
+        Arm stiffness scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Arm damping scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Finger MCP pitch stiffness & $[1.0, 1.0]$ & $[0.17, 1.0]$ \\
+        Finger MCP pitch damping & $[1.0, 1.0]$ & $[0.083, 1.0]$ \\
+        Finger MCP yaw stiffness & $[1.0, 1.0]$ & $[0.025, 1.0]$ \\
+        Finger PIP stiffness & $[1.0, 1.0]$ & $[0.02, 1.0]$ \\
+        Thumb rotation velocity limit & $[20.0, 20.0]$ & $[0.21, 20.0]$\,rad/s \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.75\textwidth]{plots/adr_ranges}
+    \caption{ADR parameter ranges. Blue bars indicate the full randomization range at maximum ADR level. Red diamonds mark the nominal start values. The thumb velocity limit spans the widest relative range, from 20\,rad/s (simulation) to 0.21\,rad/s (hardware limit).}
+    \label{fig:adr_ranges}
+\end{figure}
+
+\section{Full Results Including Physics Instability}%
+\label{app:full_results}%
+
+The results in \cref{ch:experiments} exclude physics instability events (NaN joint states, velocity explosions), which are simulation-only artifacts that cannot occur on physical hardware.
+This section reports the full evaluation data including physics instability for completeness.
+
+\begin{table}[htb]
+    \centering
+    \caption{Teacher policy per-object evaluation including physics instability (200 episodes per object, ADR-0 physics).}
+    \label{tab:teacher_eval_full}
+    \small
+    \begin{tabular}{lrrrrrr}
+        \toprule
+        \textbf{Object} & \textbf{Lift (\%)} & \textbf{UER (\%)} & \textbf{Coll. (\%)} & \textbf{OOB (\%)} & \textbf{Palm (\%)} & \textbf{Phys. (\%)} \\
+        \midrule
+        basketball shoe       &  99.0 & 32.0 &  7.0 & 21.0 &  0.0 &  4.0 \\
+        closed fist           & 100.0 & 19.5 &  0.0 &  9.0 &  0.0 & 10.5 \\
+        elephant toy          & 100.0 & 22.0 &  2.0 &  0.5 &  0.5 & 19.0 \\
+        homer                 &  99.0 & 18.5 &  2.0 & 10.5 &  0.0 &  6.0 \\
+        mario                 &  98.0 &  8.5 &  0.0 &  1.0 &  0.0 &  6.5 \\
+        milk pot              &  96.5 & 15.0 &  0.5 &  5.0 &  0.0 &  9.5 \\
+        plane                 &  83.5 & 32.5 &  1.5 &  2.5 &  8.0 & 20.5 \\
+        teddy bear            &  99.5 & 21.5 &  0.5 & 14.5 &  0.0 &  6.5 \\
+        toy bagger            &  99.0 & 25.5 &  2.0 &  7.5 &  1.0 & 15.0 \\
+        toy cow               & 100.0 & 23.5 &  0.0 & 12.0 &  0.5 & 11.0 \\
+        turtle candle holder  & 100.0 & 35.0 &  0.0 & 24.0 &  0.0 & 10.5 \\
+        \midrule
+        chicken head in car   &   0.0 &  4.5 &  0.0 &  0.0 &  0.0 &  4.5 \\
+        train                 &   0.0 & 31.5 &  2.0 &  7.5 &  0.5 & 20.5 \\
+        \midrule
+        \textbf{Average (11 lifted)} & \textbf{97.7} & \textbf{23.0} & \textbf{1.4} & \textbf{9.8} & \textbf{0.9} & \textbf{10.9} \\
+        \textbf{Average (all 13)}    & \textbf{82.7} & \textbf{22.3} & \textbf{1.3} & \textbf{8.8} & \textbf{0.8} & \textbf{11.1} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Per-Object Failure Mode Breakdowns}%
+\label{app:per_object_failure}%
+
+\Cref{fig:per_object_failure_safedagger,fig:per_object_failure_dagger,fig:per_object_failure_bc} show the complete per-object failure mode evolution over distillation iterations for SafeDAgger, DAgger, and BC, respectively.
+Each subplot shows one evaluation object with failure categories: object out of bounds, harmful collision, palm flip, and physics instability.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_safedagger}
+    \caption{Per-object failure mode breakdown for SafeDAgger over distillation iterations.}
+    \label{fig:per_object_failure_safedagger}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_dagger}
+    \caption{Per-object failure mode breakdown for DAgger over distillation iterations.}
+    \label{fig:per_object_failure_dagger}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_bc}
+    \caption{Per-object failure mode breakdown for BC over distillation iterations.}
+    \label{fig:per_object_failure_bc}
+\end{figure}
+
+\section{Environment Scaling and ADR-Randomised Distillation}%
+\label{app:scaling_adr}%
+
+Building on the primary distillation comparison, two follow-up experiments isolate the effect of environment count and physics randomisation during distillation.
+Both reuse the same teacher, loss, and architecture; each modifies a single variable.
+
+\paragraph{32 environments (4 per object).}
+Increasing the parallel environment count from 24 to 32 yields the strongest student in this work: 79.2\,\% \acs{GSR} on the 8-object evaluation set, reaching 92.3\,\% of the teacher ceiling.
+\acs{UER} is essentially unchanged (64.6\,\% vs.\ 62.7\,\%).
+The improvement is consistent with the teacher training experience: cleaner per-object gradients dominate the trade-off against per-iteration wall-clock cost.
+
+\paragraph{Distillation under \acs{ADR}~5.}
+Enabling moderate physics randomisation (ADR level~5) during distillation degrades both methods, but the relative drop differs sharply: SafeDAgger falls from 79.2\,\% to 63.9\,\% \acs{GSR} ($-15.3$\,pp), while DAgger falls from 71.7\,\% to 48.8\,\% ($-22.9$\,pp).
+The DAgger student's collision rate roughly doubles, whereas SafeDAgger's grows more modestly.
+This asymmetric degradation provides direct evidence that safety-aware gating is less brittle to distribution shifts than uniform-coverage imitation.
+
+\Cref{tab:run10_run11_results} consolidates the evaluation numbers.
+\Cref{fig:run10b_lift,fig:run11_lift} show the lift-success training curves, and \cref{fig:run10b_vs_run11_per_object} compares per-object lift between the best ADR-0 student and the ADR-5 students.
+
+\begin{table}[htb]
+    \centering
+    \caption{Standalone evaluation of environment scaling and ADR distillation experiments. \emph{Best student in bold.}}
+    \label{tab:run10_run11_results}
+    \begin{tabular}{llcccc}
+        \toprule
+        \textbf{Experiment} & \textbf{Method} & \textbf{Envs} & \textbf{ADR} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} \\
+        \midrule
+        Teacher & PPO  & --- & 14 & 85.8 & 12.1 \\
+        \midrule
+        Baseline         & SafeDAgger & 24 & 0 & 72.7 & 30.2 \\
+        Baseline         & DAgger     & 24 & 0 & 71.7 & 32.7 \\
+        \midrule
+        \textbf{32 envs} & \textbf{SafeDAgger} & \textbf{32} & \textbf{0} & \textbf{79.2} & \textbf{37.5} \\
+        ADR 5            & SafeDAgger & 32 & 5 & 63.9 & 34.1 \\
+        ADR 5            & DAgger     & 32 & 5 & 48.8 & 47.1 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run10/lift_success_normed}
+        \caption{SafeDAgger with 32 environments reaches the highest student lift success (79.2\,\%) recorded in this work.}
+        \label{fig:run10b_lift}
+    \end{minipage}\hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{plots/run11/lift_success_normed}
+        \caption{Lift success under \acs{ADR}~5. SafeDAgger (blue) degrades less than DAgger (orange) under randomised physics.}
+        \label{fig:run11_lift}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{plots/comparisons/run10b_vs_run11_per_object_lift}
+    \caption{Per-object lift success: 32-env SafeDAgger (ADR~0) versus ADR~5 SafeDAgger and DAgger. The gap to the ADR-0 best is consistently smaller for SafeDAgger.}
+    \label{fig:run10b_vs_run11_per_object}
+\end{figure}
 %

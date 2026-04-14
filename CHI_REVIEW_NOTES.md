@@ -112,3 +112,4 @@ Notes from advisor Chi Zhang's review of the Semester-v2 draft. Extracted from a
 - [ ] Ch.5 -- reframe around pipeline findings, absorb engineering findings from Ch.4 summary
 - [ ] Appendix -- add teacher comparison, extra per-object plots
 - [ ] New experiment -- run BC baseline for 3-way comparison
+
