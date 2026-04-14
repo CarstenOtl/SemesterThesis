@@ -7,9 +7,9 @@ Dexterous multi-fingered hands are hardware-ready, yet training grasping policie
 Typical distillation methods do not prevent the student from visiting dangerous states during its own rollouts, which risks hardware damage when training moves closer to the real robot.
 This thesis presents a safety-aware distillation pipeline for a 23-degree-of-freedom Agile Hand on a Franka Research~3 arm.
 A privileged teacher policy, trained with PPO under automatic domain randomization, reaches 85.8\,\% grasp success at 12.1\,\% unsafe-episode rate.
-The teacher is then distilled into a vision-based student using SafeDAgger, which gates every action through a safety criterion and hands control to the teacher whenever the student deviates too far.
-SafeDAgger and DAgger reach comparable grasp success (72.7\,\% vs.\ 71.7\,\%, up to 79.2\,\%), but SafeDAgger maintains a roughly twofold lower unsafe-episode rate during training and degrades more gracefully under aggressive domain randomization ($-15.3$ vs.\ $-22.9$ percentage points).
-These results indicate that safety-aware distillation matches task performance while substantially reducing training-time risk, with the advantage growing as the training distribution becomes harder.%
+The teacher is then distilled into a vision-based student using SafeDAgger, which gates every action through a safety criterion and hands control to the teacher whenever the student deviates too far from the teacher policy.
+SafeDAgger and DAgger reach comparable grasp success (72.7\,\% vs.\ 71.7\,\%), but SafeDAgger maintains a roughly twofold lower unsafe-episode rate during training.
+These results indicate that safety-aware distillation matches task performance while substantially reducing training-time risk.%
 }{%
 %
 % Zusammenfassung Deutsch:
@@ -18,9 +18,9 @@ Mehrfingrige geschickte Roboterhände sind hardwareseitig einsatzbereit, doch Gr
 Gängige Destillationsverfahren verhindern nicht, dass der Schüler während eigener Rollouts gefährliche Zustände besucht, was bei einem Übergang zum realen Roboter Hardwareschäden riskiert.
 Diese Arbeit stellt eine sicherheitsbewusste Destillations-Pipeline für eine 23-Freiheitsgrad Agile Hand auf einem Franka Research~3 Arm vor.
 Ein privilegierter Lehrer, trainiert mit PPO unter automatischer Domain-Randomization, erreicht 85{,}8\,\% Greiferfolg bei 12{,}1\,\% unsicheren Episoden.
-Der Lehrer wird anschließend mittels SafeDAgger in einen visuellen Schüler destilliert, wobei jede Aktion durch ein Sicherheitskriterium gefiltert und die Kontrolle an den Lehrer übergeben wird, sobald der Schüler zu stark abweicht.
-SafeDAgger und DAgger erreichen vergleichbaren Greiferfolg (72{,}7\,\% gegenüber 71{,}7\,\%, bis zu 79{,}2\,\%), doch SafeDAgger hält eine etwa doppelt so niedrige Rate unsicherer Episoden während des Trainings und degradiert unter aggressiver Domain-Randomization deutlich gnädiger ($-15{,}3$ gegenüber $-22{,}9$ Prozentpunkten).
-Diese Ergebnisse zeigen, dass sicherheitsbewusste Destillation die Aufgabenleistung erreicht und gleichzeitig das Trainingsrisiko erheblich senkt, wobei der Vorteil mit zunehmender Härte der Trainingsverteilung wächst.%
+Der Lehrer wird anschließend mittels SafeDAgger in einen visuellen Schüler destilliert, wobei jede Aktion durch ein Sicherheitskriterium gefiltert und die Kontrolle an den Lehrer übergeben wird, sobald der Schüler zu stark von der Lehrerstrategie abweicht.
+SafeDAgger und DAgger erreichen vergleichbaren Greiferfolg (72{,}7\,\% gegenüber 71{,}7\,\%), doch SafeDAgger hält eine etwa doppelt so niedrige Rate unsicherer Episoden während des Trainings.
+Diese Ergebnisse zeigen, dass sicherheitsbewusste Destillation die Aufgabenleistung erreicht und gleichzeitig das Trainingsrisiko erheblich senkt.%
 }%
 %
 %

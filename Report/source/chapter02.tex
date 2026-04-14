@@ -70,25 +70,25 @@ The following subsections discuss the imitation-learning algorithms used for thi
 \subsection{Imitation Learning and DAgger}%
 \label{subsec:bc_dagger}%
 
-\ac{BC} fits a policy by supervised regression on a fixed dataset of expert state--action pairs~\cite{Pomerleau1988}.
-It is straightforward but brittle: small deviations from the expert's state distribution lead the student into states the dataset never covered, compounding errors cause the policy to drift off-distribution, and performance degrades~\cite{Ross2011}.
+\ac{BC} fits a policy by supervised regression on a fixed dataset of teacher state--action pairs~\cite{Pomerleau1988}.
+It is straightforward but brittle: small deviations from the teacher's state distribution lead the student into states the dataset never covered, compounding errors cause the policy to drift off-distribution, and performance degrades~\cite{Ross2011}.
 
-DAgger~\cite{Ross2011} addresses this by iteratively rolling out the current student policy, querying the expert at each visited state, and aggregating the new labels into the training set.
+DAgger~\cite{Ross2011} addresses this by iteratively rolling out the current student policy, querying the teacher at each visited state, and aggregating the new labels into the training set.
 After $N$ iterations, DAgger provably finds a policy whose performance is bounded by $\epsilon_N + \mathcal{O}(1/N)$, where $\epsilon_N$ is the best achievable loss on the aggregated dataset.
 Because the student drives data collection, the dataset gradually covers the states the student actually visits, and the compounding-error problem of \ac{BC} is largely eliminated.
-DAgger is the typical distillation method in privileged teacher--student pipelines for dexterous manipulation and is used in both DextrAH-G~\cite{Lum2024} and DextrAH-RGB~\cite{Singh2025}.
+DAgger is the distillation method used in DextrAH-G~\cite{Lum2024} and DextrAH-RGB~\cite{Singh2025}, which form the basis of the present work.
 
 \subsection{Safety-Aware Distillation}%
 \label{subsec:safe_dagger}%
 
 DAgger has two practical drawbacks for dexterous manipulation.
-First, it queries the expert at every visited state, including states where the student already acts correctly, which is wasteful.
-Second, it offers no mechanism to prevent the student from visiting dangerous states during its own rollouts; the student is allowed to fail freely as long as the expert label is recorded afterwards.
+First, it queries the teacher at every visited state, including states where the student already acts correctly, which is query-inefficient.
+Second, it offers no mechanism to prevent the student from visiting dangerous states during its own rollouts; the student is allowed to fail freely as long as the teacher label is recorded afterwards.
 For dexterous hands, where unsafe actions can damage finger joints or destroy the manipulated object, this is unsatisfactory.
 
 SafeDAgger~\cite{Zhang2016} addresses both issues with a safety-dependent gating mechanism that decides, at every time step, whether the student or the teacher should execute the next action.
 Whenever the student's proposed action deviates too far from the teacher's, the system hands control to the teacher, intercepting dangerous actions before execution.
-This mixed-control scheme reduces both the number of expert queries and the number of unsafe states visited during training.
+This mixed-control scheme reduces both the number of teacher queries and the number of unsafe states visited during training.
 The result is an implicit curriculum: early in training the teacher drives most of the trajectory, while later the student takes over in regions it has mastered.
 
 \textbf{This thesis directly compares DAgger and SafeDAgger as the distillation algorithm} for a privileged dexterous grasping teacher.

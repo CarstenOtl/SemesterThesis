@@ -76,8 +76,8 @@ In effect, the privileged information is consumed by the critic to shape gradien
 
 In the dexterous grasping scenario studied in this thesis, the asymmetry is particularly pronounced.
 \Cref{tab:ac_observations} summarizes the observation components for actor and critic.
-The critic observes the full simulation state, including per-fingertip positions and velocities, object velocity, contact forces, and measured joint torques, none of which are available on the real robot.
-The actor, by contrast, receives only proprioceptive measurements and a scalar object identifier that tells the agent which object it is currently manipulating, which are the same inputs that the student will later receive alongside its RGB images.
+The critic observes the full simulation state, including per-body positions and velocities for the palm and all five fingertips (54D), object linear and angular velocity (6D), aggregate contact forces (3D), and measured joint torques for all 28 DOFs including coupled joints (23 actuated + 5 mimic), none of which are available on the real robot.
+The actor, by contrast, receives only the palm center position and velocity (6D), proprioceptive joint measurements, and a scalar object identifier, which are the same inputs that the student will later receive alongside its RGB images.
 Because the critic is discarded after training, the privileged information it consumes does not affect the deployed policy~\cite{Pinto2018}.
 The teacher's actor therefore already operates on the same proprioceptive interface that will be available on the real robot, and distillation only needs to add visual perception on top.
 
@@ -86,22 +86,23 @@ The teacher's actor therefore already operates on the same proprioceptive interf
     \caption{Observation components for the asymmetric actor--critic. The actor receives only information available on the real robot; the critic additionally receives privileged simulation state.}
     \label{tab:ac_observations}
     \small
-    \begin{tabular}{lcc}
+    \begin{tabular}{lp{5cm}cc}
         \toprule
-        \textbf{Component} & \textbf{Actor} & \textbf{Critic} \\
+        \textbf{Component} & \textbf{Description} & \textbf{Actor} & \textbf{Critic} \\
         \midrule
-        Joint positions and velocities          & 46 & 46 \\
-        Hand position and velocity              & 6  & 54 \\
-        Previous action                         & 23 & 23 \\
-        Object position and orientation         & 7  & 7  \\
-        Object goal position and scale          & 4  & 4  \\
-        Scalar object identifier                & 1  & 1  \\
+        Joint positions and velocities & All 23 actuated joints & 46 & 46 \\
+        Hand body positions & Palm + 5 fingertip positions & 6  & 18 \\
+        Hand body velocities & Linear + angular per body & --  & 36 \\
+        Previous action & & 23 & 23 \\
+        Object position and orientation & Position (3D) + quaternion (4D) & 7  & 7  \\
+        Object goal position and scale & & 4  & 4  \\
+        Scalar object identifier & & 1  & 1  \\
         \midrule
-        Object velocity \emph{(privileged)}     & -- & 6  \\
-        Contact forces \emph{(privileged)}      & -- & 3  \\
-        Measured joint torques \emph{(privileged)} & -- & 28 \\
+        Object velocity \emph{(privileged)} & Linear (3D) + angular (3D) & -- & 6  \\
+        Contact forces \emph{(privileged)} & Aggregate fingertip forces & -- & 3  \\
+        Measured joint torques \emph{(privileged)} & All 28 DOFs (incl.\ coupled) & -- & 28 \\
         \midrule
-        \textbf{Total}                          & \textbf{87} & \textbf{172} \\
+        \textbf{Total} & & \textbf{87} & \textbf{172} \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -165,7 +166,31 @@ Whenever the policy's rolling success rate exceeds a threshold $\tau_{\text{ADR}
 \end{equation}
 %
 yielding an emergent curriculum from near-nominal physics to progressively more challenging conditions.
-The concrete schedule and parameter ranges are reported in \cref{ch:experiments}.
+The curriculum uses $N_{\text{max}} = 50$ increments and a success threshold $\tau_{\text{ADR}} = 0.4$.
+\Cref{tab:adr_params_methods} lists the key randomized parameters and their start/max ranges.
+The maximum ranges for finger joint stiffness and damping correspond to values measured on the real Agile Hand hardware, and the thumb rotation velocity limit is ramped toward the hardware limit of approximately 12\,deg/s ($\approx 0.21$\,rad/s).
+
+\begin{table}[htb]
+    \centering
+    \caption{Automatic Domain Randomization parameters. All parameters share a single increment counter.}
+    \label{tab:adr_params_methods}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Parameter} & \textbf{Start Range} & \textbf{Max Range} \\
+        \midrule
+        Object mass scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Object friction (static) & $[1.0, 1.0]$ & $[0.5, 1.5]$ \\
+        Robot restitution & $[1.0, 1.0]$ & $[0.8, 1.0]$ \\
+        Arm stiffness scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Arm damping scale & $[1.0, 1.0]$ & $[0.5, 2.0]$ \\
+        Finger MCP pitch stiffness & $[1.0, 1.0]$ & $[0.17, 1.0]$ \\
+        Finger MCP pitch damping & $[1.0, 1.0]$ & $[0.083, 1.0]$ \\
+        Finger MCP yaw stiffness & $[1.0, 1.0]$ & $[0.025, 1.0]$ \\
+        Finger PIP stiffness & $[1.0, 1.0]$ & $[0.02, 1.0]$ \\
+        Thumb rotation velocity limit & $[20.0, 20.0]$ & $[0.21, 20.0]$\,rad/s \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 %% =========================================================================
 \section{Policy Distillation}%
@@ -178,7 +203,7 @@ This section presents the distillation algorithms (DAgger and its safety-aware v
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{pics/Student Training_pipeline}
-    \caption{Student distillation pipeline using SafeDAgger. The frozen teacher policy provides expert actions $\boldsymbol{a}_T$ from noisy state observations, while the student policy produces actions $\boldsymbol{a}_S$ from stereo RGB images and proprioception. The safety policy evaluates the L2 action disagreement between teacher and student to determine whether the student may act autonomously or the teacher must intervene, controlled by the safety threshold~$\delta$.}
+    \caption{Student distillation pipeline using SafeDAgger. The frozen teacher policy provides teacher actions $\boldsymbol{a}_T$ from noisy state observations, while the student policy produces actions $\boldsymbol{a}_S$ from stereo RGB images and proprioception. The safety policy evaluates the L2 action disagreement between teacher and student to determine whether the student may act autonomously or the teacher must intervene, controlled by the safety threshold~$\delta$.}
     \label{fig:student_training}
 \end{figure}
 
@@ -289,5 +314,6 @@ The entire stack is optimized jointly under the inverse-variance-weighted L2 los
 \end{figure}
 
 In addition to the dynamics gap addressed by \ac{ADR}, the sim-to-real gap acquires a \emph{visual} component when the student operates on camera images.
-Visual domain randomization, in which the simulator perturbs lighting, textures, camera pose, and background at every episode reset, is applied to mitigate this; the specific scheme is reported in \cref{sec:student_implementation}.
+Following DextrAH-RGB~\cite{Singh2025}, visual domain randomization is applied during distillation to mitigate this: at each episode reset, dome-light HDRI backgrounds, material properties (albedo, roughness, metallic constant) of the robot, table, and object, as well as object and table textures are randomized.
+Additional data augmentations include color jitter and motion blur.
 %

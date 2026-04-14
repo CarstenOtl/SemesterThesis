@@ -17,11 +17,11 @@ Learning-based methods, particularly \ac{DRL}, have recently demonstrated impres
 However, transferring these policies to real hardware introduces a fundamental challenge: during training, RL agents have access to privileged information (exact object poses, contact forces, full state vectors) that is unavailable at deployment time, where the robot must rely on noisy sensory observations such as camera images.
 
 The dominant strategy to bridge this gap is \emph{policy distillation}, in which a privileged \emph{teacher} policy is trained in simulation with full state access and its behavior is then distilled into a \emph{student} policy that operates from realistic sensor inputs~\cite{Singh2025, Lum2024}.
-The DAgger algorithm~\cite{Ross2011} is widely used for this distillation step, as it addresses the distribution shift between expert demonstrations and student-induced trajectories through iterative data aggregation.
+The DAgger algorithm~\cite{Ross2011} is widely used for this distillation step, as it addresses the distribution shift between teacher demonstrations and student-induced trajectories through iterative data aggregation.
 Yet DAgger is agnostic to safety: it queries the teacher uniformly, including in states where the student already performs well, and does not prevent the student from visiting dangerous states during training.
 For dexterous hands, where unsafe actions can cause hardware damage (e.g., jamming or overloading finger joints) or lead to unstable contact configurations, a safety-aware distillation procedure is desirable.
 
-\section{Problem Statement}%
+\section{Research Gap}%
 \label{sec:problem_statement}%
 
 From the situation outlined above, a general problem emerges: dexterous multi-fingered hands are hardware-ready, yet no scalable recipe exists for obtaining grasping policies that are simultaneously \emph{deployable on real hardware} (i.e., driven by realistic sensor inputs rather than privileged state) and \emph{safe to train}, in the sense that the training procedure itself does not rely on repeatedly visiting states that would damage the hand or the object on a physical system.
@@ -38,12 +38,10 @@ This thesis therefore addresses the problem of distilling a privileged dexterous
 The main contributions of this semester thesis are:
 
 \begin{enumerate}
-    \item \textbf{Dexterous grasping environment in Isaac Lab:} A direct RL environment (\texttt{DirectRLEnv}) in Isaac Lab for training arm-hand grasping policies with the Agile Hand and \ac{FR3}, including custom reward shaping and asset integration.
+    \item \textbf{Dexterous grasping environment in Isaac Lab:} An RL environment in Isaac Lab for training arm-hand grasping policies with the Agile Hand and \ac{FR3}.
     \item \textbf{Privileged teacher policy:} A trained RL teacher policy that achieves robust dexterous grasping of diverse objects in simulation using privileged state information.
     \item \textbf{SafeDAgger-based distillation:} A comparative study of DAgger versus SafeDAgger for distilling the privileged teacher into a vision-based student, evaluating both task performance (\ac{GSR}) and training safety (number of unsafe episodes).
 \end{enumerate}
-
-This work lays the foundation for the subsequent master's thesis, which will extend the pipeline to include finger-gaiting, in-hand reorientation, and fine tool use such as screwdriving.
 
 \section{Thesis Outline}%
 \label{sec:thesis_outline}%
@@ -52,8 +50,8 @@ The remainder of this thesis is structured as follows:
 
 \begin{description}
     \item[Chapter~\ref{ch:related_work}] reviews related work on dexterous grasping, policy distillation methods (DAgger, SafeDAgger), and sim-to-real transfer for manipulation.
-    \item[Chapter~\ref{ch:methods}] formalizes the problem as a \ac{POMDP}, derives the privileged teacher training objective, and presents the mathematical framework for DAgger, SafeDAgger, and DexSafeDagger distillation.
-    \item[Chapter~\ref{ch:experiments}] describes the experimental setup, including the hardware platform, simulation environment, reward design, and network architectures, presents teacher training results and SafeDAgger distillation experiments, and compares DAgger and SafeDAgger.
+    \item[Chapter~\ref{ch:methods}] formalizes the problem as a \ac{POMDP}, derives the privileged teacher training objective, and presents the mathematical framework for DAgger and SafeDAgger distillation.
+    \item[Chapter~\ref{ch:experiments}] describes the experimental setup, presents teacher training results, and compares three distillation methods: \ac{BC}, DAgger, and SafeDAgger.
     \item[Chapter~\ref{ch:conclusion}] discusses the findings, limitations, and directions for future work in the master's thesis.
 \end{description}
 %

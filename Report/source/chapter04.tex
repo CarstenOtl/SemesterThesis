@@ -44,7 +44,9 @@ We evaluate on 13 objects from the VisDex dataset (\cref{fig:training_objects}),
 At episode reset, each environment is assigned one object uniformly at random, and the object's mass, friction, and scale are randomized within the \ac{ADR} ranges.
 Each episode lasts up to 10\,s (600 steps) and terminates early if any unsafe condition from \cref{tab:terminations} is triggered.
 These termination conditions are reused as unsafe-event signals for SafeDAgger's intervention logic during distillation.
-Training hyperparameters and \ac{ADR} parameter ranges are listed in \cref{app:ppo_hyperparams,app:adr_params}.
+An episode is considered successful if the object is lifted above the table and held for at least 0.5\,s (30 steps).
+When the rolling success rate across all environments exceeds the \ac{ADR} threshold $\tau_{\text{ADR}} = 0.4$ (40\,\%), the randomization ranges are widened by one increment, progressively increasing the difficulty of the training distribution.
+Training hyperparameters are listed in \cref{app:ppo_hyperparams}.
 
 \begin{figure}[htb]
     \centering
@@ -151,12 +153,10 @@ The student replaces the teacher's privileged object state with stereo RGB image
 The student does \emph{not} receive the object position, orientation, scale, or contact information; these must be inferred from the visual input.
 The visual encoder, cross-attention fusion, and LSTM policy head are described in \cref{sec:rgb_distillation}.
 
-Distillation follows the SafeDAgger procedure from \cref{alg:safedagger}, using Adam with a learning rate of $1 \times 10^{-4}$ and the combined loss from \cref{eq:total_loss} ($\lambda_{\text{aux}} = 0.02$).
+Distillation follows the SafeDAgger procedure from \cref{alg:safedagger}, using Adam with a learning rate of $1 \times 10^{-4}$ and the combined loss from \cref{eq:total_loss}.
 The teacher intervenes whenever the per-environment L2 action disagreement exceeds the safety threshold $\delta$ (\cref{sec:ablation_threshold}).
 Training runs for 100{,}000 iterations across 24 parallel environments.
 The object set is reduced from the teacher's 13 VisDex objects to an 8-object subset (basketball shoe, closed fist, elephant toy, mario, milk pot, teddy bear, toy bagger, turtle candle holder) to ensure at least 3 environments per object, which produces more stable per-object gradients during online distillation.
-Following DextrAH-RGB~\cite{Singh2025}, visual domain randomization is applied during distillation: at each episode reset, dome-light HDRI backgrounds, material properties (albedo, roughness, metallic constant) of the robot, table, and object, as well as object and table textures are randomized.
-Additional data augmentations include color jitter and motion blur.
 
 %% =========================================================================
 \subsection{Evaluation Metrics}%
@@ -223,10 +223,10 @@ This decomposition identifies which failure categories each distillation method 
 \label{sec:ablations}%
 
 The following ablation studies are conducted to justify the pipeline design.
-The teacher policy trained during the RL phase (\cref{sec:teacher_results}) is distilled into a vision-based student using three distillation variants: \ac{BC}, DAgger, and SafeDAgger.
+The trained teacher policy is distilled into a vision-based student using three distillation variants: \ac{BC}, DAgger, and SafeDAgger.
 All three use the same teacher, student architecture, loss function, and training budget; only the data-collection strategy differs.
-We evaluate these variants in terms of lift-success growth, unsafe-episode rate, and intervention rate (defined as the fraction of time steps in which teacher takeover occurs, $\beta = \frac{1}{T}\sum_{t=0}^{T-1}\mathbb{I}[g_t = 1]$, averaged over evaluation episodes) during training.
-Since the \ac{UER} is the primary safety metric, we report not only the average rate across all test objects but also a per-object, failure-mode decomposition to assess each method under different failure conditions.
+The variants are evaluated in terms of lift-success growth, unsafe-episode rate, and intervention rate (defined as the fraction of time steps in which teacher takeover occurs, $\beta = \frac{1}{T}\sum_{t=0}^{T-1}\mathbb{I}[g_t = 1]$, averaged over evaluation episodes) during training.
+Since the \ac{UER} is the primary safety metric, not only the average rate across all test objects is reported but also a per-object, failure-mode decomposition to assess each method under different failure conditions.
 Additionally, standalone student evaluations provide the final task performance after training.
 
 \subsection{Safety Threshold Sensitivity}%
@@ -242,7 +242,7 @@ The results of this sweep are reported in \cref{sec:threshold_results}.
 \subsection{Distillation Method Comparison}%
 \label{sec:ablation_method}%
 
-Using the optimal threshold ($\delta = 2.0$) identified from the safety threshold sensitivity ablation (\cref{sec:ablation_threshold}), the central experiment compares the three distillation methods.
+The central experiment compares the three distillation methods using the threshold identified from the sensitivity sweep (\cref{sec:ablation_threshold}).
 \ac{BC} trains on a fixed offline dataset of teacher rollouts, DAgger iteratively collects data under the student's own policy, and SafeDAgger adds safety-aware gating (\cref{alg:safedagger}).
 
 %% =========================================================================
