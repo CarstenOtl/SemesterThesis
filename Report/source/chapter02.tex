@@ -29,10 +29,10 @@ First, the search space grows to $\mathrm{SE}(3) \times \mathbb{R}^{n_h}$ for an
 Second, all variants produce static grasp configurations that are executed by a separate controller and cannot adapt if conditions differ from the assumed model; whenever the object geometry, contact physics, or robot kinematics are wrong, as is unavoidable for novel objects, deformable materials, or worn hardware, the planned grasp fails~\cite{Tang2024}.
 Errors compound across the pipeline, and the absence of online adaptation prevents recovery from perturbations.
 
-\subsection{End-to-End Reinforcement Learning}%
+\subsection{Reinforcement Learning}%
 \label{subsec:learning_based_grasping}%
 
-The static, non-adaptive nature and model dependence of analytical methods motivate a fundamentally different paradigm: end-to-end \ac{RL}, which jointly learns perception, grasp strategy, and reactive control from interaction~\cite{Tang2024}.
+The static, non-adaptive nature and model dependence of analytical methods motivate a fundamentally different paradigm: \ac{RL}, which jointly learns perception, grasp strategy, and reactive control from interaction~\cite{Tang2024}.
 Instead of relying on pre-specified grasp taxonomies, the policy discovers contact strategies through trial and error in simulation, producing closed-loop controllers that can react to perturbations at every time step.
 
 Kumar et al.~\cite{Kumar2016} were among the first to demonstrate model-based \ac{RL} for contact-rich manipulation on a 24-\acs{DoF} hand.
@@ -43,7 +43,7 @@ UniDexGrasp++~\cite{Wan2023} decomposed the problem into a learned grasp proposa
 
 While much of this work targets in-hand manipulation with a fixed wrist, real applications require coordinated arm-hand control: reaching, grasping, and transporting an object as a single behavior.
 DextrAH-G~\cite{Lum2024} addressed this with a 23-motor arm-hand system, combining geometric fabrics~\cite{Ratliff2023} as a structured low-level control layer with an \ac{RL} policy on top, achieving fast and safe dexterous grasping from depth images.
-DextrAH-RGB~\cite{Singh2025} extended this to RGB input and demonstrated the first successful sim-to-real transfer of an end-to-end RGB-based dexterous grasping policy.
+DextrAH-RGB~\cite{Singh2025} extended this to RGB input and demonstrated the first successful sim-to-real transfer of an RGB-based dexterous grasping policy.
 
 The key advantage of learned policies is closed-loop reactivity and the ability to handle novel objects without explicit models.
 The key limitation is the sim-to-real gap: policies trained with privileged simulation state (object poses, contact forces) do not directly transfer to a real robot that observes only camera images and joint encoders.

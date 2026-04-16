@@ -207,7 +207,7 @@ This section presents the distillation algorithms (DAgger and its safety-aware v
     \label{fig:student_training}
 \end{figure}
 
-\subsection{DAgger and SafeDAgger}%
+\subsection{DAgger and SafeDAgger Based Distillation}%
 \label{sec:dagger_method}%
 
 \ac{BC} on a fixed dataset of teacher trajectories suffers from compounding errors: small deviations from the teacher's state distribution lead the student into unvisited states, causing the policy to drift and fail~\cite{Ross2011}.
@@ -275,8 +275,8 @@ where $\mu_\theta$ and $\mu^*$ are the mean actions of the student and teacher.
 Dimensions in which the teacher is confident (small $\sigma^*$) contribute more strongly, while uncertain dimensions contribute less, yielding an automatic weighting that does not require hand-tuning arm-versus-hand action scales.
 The auxiliary loss $\mathcal{L}_{\text{aux}} = \|\hat{\mathbf{x}}_{\text{obj}} - \mathbf{x}_{\text{obj}}\|_2^2$ regresses the ground-truth object position from the visual encoder's representation, providing an additional learning signal that regularizes the encoder toward spatially meaningful features.
 
-\subsection{RGB-Based Distillation}%
-\label{sec:rgb_distillation}%
+\subsection{RGB-Based Perception}%
+\label{sec:rgb_perception}%
 
 The student replaces the teacher's privileged object state with stereo RGB images.
 This thesis reuses the visual encoder architecture from DextrAH-RGB~\cite{Singh2025}.

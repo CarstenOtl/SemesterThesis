@@ -151,7 +151,7 @@ Training hyperparameters are listed in \cref{app:ppo_hyperparams}.
 
 The student replaces the teacher's privileged object state with stereo RGB images ($320 \times 240$ at 30\,fps) while retaining the proprioceptive inputs (joint positions/velocities, hand pose, goal position, previous action).
 The student does \emph{not} receive the object position, orientation, scale, or contact information; these must be inferred from the visual input.
-The visual encoder, cross-attention fusion, and LSTM policy head are described in \cref{sec:rgb_distillation}.
+The visual encoder, cross-attention fusion, and LSTM policy head are described in \cref{sec:rgb_perception}.
 
 Distillation follows the SafeDAgger procedure from \cref{alg:safedagger}, using Adam with a learning rate of $1 \times 10^{-4}$ and the combined loss from \cref{eq:total_loss}.
 The teacher intervenes whenever the per-environment L2 action disagreement exceeds the safety threshold $\delta$ (\cref{sec:ablation_threshold}).
@@ -229,7 +229,7 @@ The variants are evaluated in terms of lift-success growth, unsafe-episode rate,
 Since the \ac{UER} is the primary safety metric, not only the average rate across all test objects is reported but also a per-object, failure-mode decomposition to assess each method under different failure conditions.
 Additionally, standalone student evaluations provide the final task performance after training.
 
-\subsection{Safety Threshold Sensitivity}%
+\subsection{Safety Threshold Calibration}%
 \label{sec:ablation_threshold}%
 
 SafeDAgger's behavior depends on the safety threshold $\delta$, which Zhang and Cho~\cite{Zhang2016} selected as a single value based on the error distribution of an initial supervised policy without systematic analysis.
@@ -239,14 +239,14 @@ The calibration proceeds by analyzing the distribution of per-environment L2 act
 This work sweeps $\delta$ across the values 0.5, 2.0, and 3.0, with $\delta \to \infty$ recovering vanilla DAgger as the upper bound.
 The results of this sweep are reported in \cref{sec:threshold_results}.
 
-\subsection{Distillation Method Comparison}%
+\subsection{DAgger vs.\ SafeDAgger}%
 \label{sec:ablation_method}%
 
 The central experiment compares the three distillation methods using the threshold identified from the sensitivity sweep (\cref{sec:ablation_threshold}).
 \ac{BC} trains on a fixed offline dataset of teacher rollouts, DAgger iteratively collects data under the student's own policy, and SafeDAgger adds safety-aware gating (\cref{alg:safedagger}).
 
 %% =========================================================================
-\section{Results, Graphs and Tables}%
+\section{Results}%
 \label{sec:results}%
 
 \subsection{Teacher Training Results}%
@@ -333,7 +333,7 @@ At $\delta = 3.0$, intervention is minimal from the start ($<$10\,\%), offering 
 All distillation experiments share the same teacher (85.8\,\% \ac{GSR}, 12.1\,\% \ac{UER}), the same student architecture (ResNet-18 + cross-attention + LSTM-512), and the same loss (\cref{eq:total_loss}).
 The primary three-way comparison uses 100{,}000 distillation iterations on the 8-object VisDex subset.
 
-\subsubsection{Distillation Method Comparison}%
+\subsubsection{DAgger vs.\ SafeDAgger}%
 \label{sec:dagger_results}%
 
 \Cref{tab:distillation_comparison} reports the evaluation metrics for BC, DAgger, and SafeDAgger ($\delta = 2.0$).
@@ -544,7 +544,7 @@ The per-object unsafe rate curves show that SafeDAgger achieves consistently low
 Additional experiments on environment scaling and ADR-randomised distillation are reported in \cref{app:scaling_adr}.
 
 %% =========================================================================
-\section{Summary of Findings}%
+\section{Summary}%
 \label{sec:results_summary}%
 
 The key experimental findings are:

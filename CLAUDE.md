@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a LaTeX semester thesis (currently) and future master's thesis for TUM (Technical University of Munich), using the **AIRlatex** document class from the Chair of Robotics, Artificial Intelligence and Real-time Systems (I6/AIR). The thesis is written in English.
 
-**Title (semester thesis):** Safe Privileged Policy Distillation for Vision-Based Dexterous Grasping
+**Title (semester thesis):** DAgger-Based Distillation of an RL-Trained Privileged Grasping Policy for a Dexterous Hand--Arm System: Towards Safer Training
 **Working title (master's thesis):** Dexterous Manipulation of Unknown Objects & Fine Tool Use with Dual-Arm, Dual-Hand Robots
 
 **Author:** Carsten Oertel

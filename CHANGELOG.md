@@ -2,6 +2,12 @@
 
 Tracks recent changes to the thesis report. Newest entries on top.
 
+## 2026-04-15
+
+### Title change (Chi v3 feedback)
+
+- **Renamed thesis** to "DAgger-Based Distillation of an RL-Trained Privileged Grasping Policy for a Dexterous Hand--Arm System: Towards Safer Training" (German: "DAgger-basierte Destillation einer RL-trainierten privilegierten Greifstrategie für ein geschicktes Hand-Arm-System: Hin zu sichererem Training"). Chi found the previous title ("Training and Distilling Privileged Grasping Policies for a Dexterous Robotic Hand: A Safety-Aware Approach") unsatisfactory and suggested the "DAgger-based distillation of an RL-trained privileged grasping policy for a dexterous robotic hand(-arm system)" phrasing. The "Towards Safer Training" subtitle keeps the safety-awareness angle while accurately scoping the contribution to training-time safety (where the 50% UER reduction actually shows up).
+
 ## 2026-04-13
 
 ### Chapter 4 — Experiments and Results (Chi v2 review revisions)

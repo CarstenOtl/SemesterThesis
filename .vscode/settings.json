@@ -21,5 +21,6 @@
     "latex-workshop.view.pdf.viewer": "tab",
     "latex-workshop.latex.autoBuild.run": "onSave",
     "latex-workshop.latex.search.rootFiles.exclude": ["**/cover.tex"],
-    "latex-workshop.latex.rootFile.doNotPrompt": true
+    "latex-workshop.latex.rootFile.doNotPrompt": true,
+    "latex-workshop.synctex.afterBuild.enabled": false
 }

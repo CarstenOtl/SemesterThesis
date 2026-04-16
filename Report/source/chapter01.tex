@@ -21,7 +21,7 @@ The DAgger algorithm~\cite{Ross2011} is widely used for this distillation step, 
 Yet DAgger is agnostic to safety: it queries the teacher uniformly, including in states where the student already performs well, and does not prevent the student from visiting dangerous states during training.
 For dexterous hands, where unsafe actions can cause hardware damage (e.g., jamming or overloading finger joints) or lead to unstable contact configurations, a safety-aware distillation procedure is desirable.
 
-\section{Research Gap}%
+\section{Research Frontier}%
 \label{sec:problem_statement}%
 
 From the situation outlined above, a general problem emerges: dexterous multi-fingered hands are hardware-ready, yet no scalable recipe exists for obtaining grasping policies that are simultaneously \emph{deployable on real hardware} (i.e., driven by realistic sensor inputs rather than privileged state) and \emph{safe to train}, in the sense that the training procedure itself does not rely on repeatedly visiting states that would damage the hand or the object on a physical system.
