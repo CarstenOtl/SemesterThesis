@@ -170,6 +170,10 @@ The curriculum uses $N_{\text{max}} = 50$ increments and a success threshold $\t
 \Cref{tab:adr_params_methods} lists the key randomized parameters and their start/max ranges.
 The maximum ranges for finger joint stiffness and damping correspond to values measured on the real Agile Hand hardware, and the thumb rotation velocity limit is ramped toward the hardware limit of approximately 12\,deg/s ($\approx 0.21$\,rad/s).
 
+In addition to physics-parameter randomization, \ac{ADR} controls an external wrench perturbation applied to the grasped object.
+Whenever the hand is within a proximity threshold of the object, random forces and torques are applied at each perturbation interval, with magnitudes scaled by the object mass.
+The maximum linear acceleration is ramped from $0$ to $10\,\mathrm{m/s^2}$ over the \ac{ADR} schedule, forcing the teacher to develop robust force-closure grasps that resist progressively stronger perturbations.
+
 \begin{table}[htb]
     \centering
     \caption{Automatic Domain Randomization parameters. All parameters share a single increment counter.}
@@ -188,6 +192,7 @@ The maximum ranges for finger joint stiffness and damping correspond to values m
         Finger MCP yaw stiffness & $[1.0, 1.0]$ & $[0.025, 1.0]$ \\
         Finger PIP stiffness & $[1.0, 1.0]$ & $[0.02, 1.0]$ \\
         Thumb rotation velocity limit & $[20.0, 20.0]$ & $[0.21, 20.0]$\,rad/s \\
+        Object wrench max.\ accel.\ & $[0, 0]$ & $[0, 10]$\,m/s$^2$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -203,7 +208,7 @@ This section presents the distillation algorithms (DAgger and its safety-aware v
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{pics/Student Training_pipeline}
-    \caption{Student distillation pipeline using SafeDAgger. The frozen teacher policy provides teacher actions $\boldsymbol{a}_T$ from noisy state observations, while the student policy produces actions $\boldsymbol{a}_S$ from stereo RGB images and proprioception. The safety policy evaluates the L2 action disagreement between teacher and student to determine whether the student may act autonomously or the teacher must intervene, controlled by the safety threshold~$\delta$.}
+    \caption{Student distillation pipeline using SafeDAgger. The frozen teacher policy provides teacher actions $\boldsymbol{a}_T$ from noisy state observations, while the student policy produces actions $\boldsymbol{a}_S$ from stereo RGB images and proprioception. The safety policy evaluates the inverse-variance-weighted L2 action disagreement between teacher and student to determine whether the student may act autonomously or the teacher must intervene, controlled by the safety threshold~$\delta$.}
     \label{fig:student_training}
 \end{figure}
 
@@ -219,10 +224,11 @@ Since the teacher is queried at every state to label the dataset, the learned sa
 Let
 %
 \begin{equation}\label{eq:safety_label}
-    e_t \;=\; \left\| \hat{\pi}_\theta(o_t^{\text{student}}) - \pi^*(o_t^{\text{teacher}}) \right\|_2
+    e_t \;=\; \sum_{i=1}^{\dim \mathcal{A}} \frac{\bigl(\mu_{\theta,i}(o_t^{\text{student}}) - \mu^*_i(o_t^{\text{teacher}})\bigr)^2}{\sigma^{*\,2}_i(o_t^{\text{teacher}})}
 \end{equation}
 %
-denote the per-step L2 action disagreement.
+denote the per-step inverse-variance-weighted L2 action disagreement, where $\mu_\theta$ and $\mu^*$ are the mean actions of the student and teacher and $\sigma^{*\,2}_i$ is the teacher's predicted variance for action dimension $i$.
+This is the same per-step quantity used as the action imitation loss in \cref{eq:wl2_loss}, so SafeDAgger's safety gate and the supervision signal share a single scale.
 The executed action is selected by thresholding $e_t$ against a safety threshold $\delta > 0$:
 %
 \begin{equation}\label{eq:safedagger_intervention}
@@ -244,7 +250,7 @@ The complete procedure is given in \cref{alg:safedagger}; \hlsafe{highlighted li
 \State Initialize student $\hat{\pi}_{\theta}$, \hlsafe{safety threshold $\delta > 0$}
 \For{each time step $t$ in rollout}
     \State Query teacher: $a_t^* = \pi^*(o_t^{\text{teacher}})$
-    \State \hlsafe{Compute action disagreement $e_t = \|\hat{\pi}_{\theta}(o_t^{\text{student}}) - a_t^*\|_2$}
+    \State \hlsafe{Compute action disagreement $e_t$ as in \cref{eq:safety_label}}
     \If{\hlsafe{$e_t \leq \delta$}}
         \State \hlsafe{Execute $a_t = \hat{\pi}_{\theta}(o_t^{\text{student}})$} \Comment{\hlsafe{Student acts}}
     \Else

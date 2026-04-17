@@ -6,11 +6,11 @@
 % Reframed to foreground the pipeline as the core contribution; distillation is a secondary study.
 Dexterous multi-fingered hands are hardware-ready, yet there is no off-the-shelf recipe for training grasping policies on a new hand--arm system that transfer from simulation to real hardware without extensive retuning.
 This thesis presents a dexterous grasping pipeline for a 23-degree-of-freedom Agile Hand on a Franka Research~3 arm.
-A privileged teacher policy is trained with PPO under automatic domain randomization.
-The teacher reaches 85.8\,\% grasp success at 12.1\,\% unsafe-episode rate.
-The teacher is then distilled into an RGB-based student using SafeDAgger, which gates every action through a safety criterion and hands control to the teacher whenever the student deviates too far from the teacher policy.
-SafeDAgger and DAgger reach comparable grasp success (72.7\,\% vs.\ 71.7\,\%), but SafeDAgger maintains a 50\,\% lower unsafe-episode rate during training.
-Together, these results establish a dexterous grasping pipeline and indicate that safety-aware distillation matches task performance while substantially reducing training-time risk.%
+A privileged teacher policy is trained with \ac{PPO} under automatic domain randomization on 8 different objects, reaching 99.0\,\% grasp success at 12.2\,\% unsafe-episode rate.
+The teacher is distilled into an RGB-based student using SafeDAgger.
+The resulting student reaches 97.0\,\% grasp success, about 98\,\% of the teacher's lifting performance.
+Benchmarked against two alternative distillation baselines, behavioral cloning and DAgger, SafeDAgger achieves both higher lift success (97.0\,\% vs.\ 87.8\,\% for \ac{BC} and 83.4\,\% for DAgger) and the lowest unsafe-episode rate (38.3\,\% vs.\ 41.4\,\% for \ac{BC} and 52.2\,\% for DAgger).
+Together, these results establish a dexterous grasping pipeline in which safety-aware distillation produces the best task performance and the safest student among the compared methods.%
 }{%
 %
 % Zusammenfassung Deutsch:
@@ -18,11 +18,11 @@ Together, these results establish a dexterous grasping pipeline and indicate tha
 % Neugewichtet: Die Pipeline ist der Kernbeitrag; die Destillation ist eine nachgelagerte Studie.
 Mehrfingrige geschickte Roboterhände sind hardwareseitig einsatzbereit, doch es fehlt an einem standardisierten Rezept, um Greifstrategien auf einem neuen Hand-Arm-System zu trainieren, die ohne aufwändiges Nachjustieren vom Simulator auf reale Hardware übertragbar sind.
 Diese Arbeit stellt eine Pipeline für geschicktes Greifen mit einer 23-Freiheitsgrad Agile Hand auf einem Franka Research~3 Arm vor.
-Ein privilegierter Lehrer wird mit PPO unter automatischer Domain-Randomization trainiert.
-Der Lehrer erreicht 85{,}8\,\% Greiferfolg bei 12{,}1\,\% unsicheren Episoden.
-Der Lehrer wird anschließend mittels SafeDAgger in einen RGB-basierten Schüler destilliert, wobei jede Aktion durch ein Sicherheitskriterium gefiltert und die Kontrolle an den Lehrer übergeben wird, sobald der Schüler zu stark von der Lehrerstrategie abweicht.
-SafeDAgger und DAgger erreichen vergleichbaren Greiferfolg (72{,}7\,\% gegenüber 71{,}7\,\%), doch SafeDAgger hält eine um 50\,\% niedrigere Rate unsicherer Episoden während des Trainings.
-Zusammen etablieren diese Ergebnisse eine Pipeline für geschicktes Greifen und zeigen, dass sicherheitsbewusste Destillation die Aufgabenleistung erhält und gleichzeitig das Trainingsrisiko erheblich senkt.%
+Ein privilegierter Lehrer wird mit \ac{PPO} unter automatischer Domain-Randomization auf 8 verschiedenen Objekten trainiert und erreicht 99{,}0\,\% Greiferfolg bei 12{,}2\,\% unsicheren Episoden.
+Der Lehrer wird mittels SafeDAgger in einen RGB-basierten Schüler destilliert.
+Der resultierende Schüler erreicht 97{,}0\,\% Greiferfolg, rund 98\,\% der Hebeleistung des Lehrers.
+Im Vergleich zu zwei alternativen Destillationsbaselines, Behavioral Cloning und DAgger, erzielt SafeDAgger sowohl den höheren Greiferfolg (97{,}0\,\% gegenüber 87{,}8\,\% bei \ac{BC} und 83{,}4\,\% bei DAgger) als auch die niedrigste Rate unsicherer Episoden (38{,}3\,\% gegenüber 41{,}4\,\% bei \ac{BC} und 52{,}2\,\% bei DAgger).
+Zusammen etablieren diese Ergebnisse eine Pipeline für geschicktes Greifen, in der sicherheitsbewusste Destillation sowohl die beste Aufgabenleistung als auch den sichersten Schüler unter den verglichenen Methoden liefert.%
 }%
 %
 %

@@ -2,66 +2,62 @@
 \chapter{Discussion and Conclusion}%
 \label{ch:conclusion}%
 
-This chapter interprets the experimental results of \cref{ch:experiments}, discusses the limitations of the present study, and outlines how the findings shape the direction of the subsequent master's thesis.
+This chapter interprets the experimental results of \cref{ch:experiments}, discusses the limitations of the present study, and outlines directions for future work.
 
 %% =========================================================================
 \section{Discussion}%
 \label{sec:discussion}%
 
-\subsection{The Value of Online Distribution Correction}%
+\subsection{Offline vs.\ Online Distillation}%
 \label{sec:discuss_bc}%
 
-The three-way comparison between BC, DAgger, and SafeDAgger provides a clear empirical answer to the question of whether online distribution correction is necessary for safe policy distillation.
-BC achieves the highest grasp success rate (87.8\,\%), matching the teacher within 2 percentage points, but produces the highest unsafe-episode rate (41.8\,\%).
+The three-way comparison between BC, DAgger, and SafeDAgger contrasts offline distillation, where the student trains exclusively on teacher-generated data, with online distillation, where the student acts in the environment during training.
+BC achieves a respectable 87.8\,\% grasp success rate but produces an evaluation \ac{UER} of 41.4\,\%, because the student never practices recovery from its own mistakes.
 The checkpoint sweep further reveals that BC overfits after 50k iterations, with lift success peaking at 95.6\,\% before degrading to 85.6\,\% at 100k.
 These results confirm that training exclusively on the teacher's state distribution yields high in-distribution accuracy but fails to produce robust behavior when the student acts autonomously.
-Online methods (DAgger, SafeDAgger) sacrifice peak lift performance for robustness by exposing the student to its own imperfect trajectories during training.
 
-\subsection{SafeDAgger as a Pareto Improvement over DAgger}%
+\subsection{SafeDAgger Dominates BC and DAgger}%
 \label{sec:discuss_safedagger}%
 
-SafeDAgger (72.7\,\% \ac{GSR}) and DAgger (71.7\,\%) reach comparable task performance, recovering roughly 85\,\% of the teacher ceiling.
-The safety picture, however, differs substantially.
-In standalone evaluation, where the student acts autonomously without teacher intervention, SafeDAgger achieves a lower \ac{UER} (30.2\,\% vs.\ 32.7\,\%).
-During training, the gap is more pronounced: SafeDAgger maintains an unsafe-episode rate of roughly 15--20\,\% while DAgger fluctuates between 30\,\% and 40\,\% (\cref{fig:run9_unsafe_rate}).
-For a hypothetical online deployment, in which each unsafe rollout corresponds to a hardware event rather than a simulation reset, this difference would translate into roughly half as many damaging episodes for the same number of training steps.
+Once a suitable safety threshold is identified from the DAgger action-disagreement distribution, SafeDAgger at $\delta = 3.0$ reaches 97.0\,\% grasp success, about 98\,\% of the teacher ceiling, and simultaneously produces the lowest evaluation \ac{UER} of the three methods (38.3\,\% vs.\ 41.4\,\% for BC and 52.2\,\% for DAgger).
+Safety-aware distillation is thus Pareto-dominant over both alternative baselines on both axes.
 
-The per-object failure mode decomposition reveals that SafeDAgger's advantage is most pronounced on collision-prone objects such as the basketball shoe and toy bagger, where DAgger's unrestricted exploration causes persistent contact with the table surface.
-SafeDAgger's intervention mechanism intercepts these dangerous approach trajectories early in training, allowing the student to learn from corrected states rather than from the consequences of its own failures.
+The mechanism is visible in the failure-mode profile of each method.
+DAgger lets the student explore freely and accumulates object-out-of-bounds terminations (35.0\,\% of all episodes) as the student learns an aggressive grasp motion but not when to stop.
+BC drives every step with the teacher and produces an in-distribution student that fails the moment it encounters a state the teacher never visited.
+SafeDAgger at $\delta = 3.0$ rescues the student only on the few steps where its action most sharply disagrees with the teacher; the remaining steps proceed under the student's own actions, which gives the student the self-distribution practice DAgger provides without the unchecked exploration that makes DAgger unsafe.
 
-Within the regime studied, SafeDAgger matches DAgger on task performance while strictly improving training-time safety, making it Pareto-dominant.
-This is consistent with the intuition that dexterous grasping has a large fraction of trivially safe states (free-space approach, wrist alignment) on which the safety filter incurs zero cost.
+A notable pattern across all three methods is that object-out-of-bounds is the dominant failure mode despite high lift success.
+The teacher is trained with external wrench perturbations that ramp up via \ac{ADR}, which forces it to develop robust force-closure grasps.
+During distillation and evaluation, however, the wrench magnitude is zero.
+The student therefore never needs to resist external perturbations, yet it still drops objects after initially lifting them.
+This suggests that the distilled student does not fully reproduce the teacher's finger coordination for maintaining force closure: the student learns \emph{where} to grasp but not \emph{how tightly} to hold, resulting in fragile grasps that fail under the object's own inertia during the lifting motion.
+Training the student under \ac{ADR} conditions closer to those of the teacher, including the external wrench perturbations, could force the student to develop more robust grasps during distillation and reduce the object-out-of-bounds failure rate.
 
-\subsection{The Role of Implementation Details}%
+\subsection{Calibration and the Non-Monotonic Threshold-Performance Curve}%
 \label{sec:impl_details}%
 
-The safety-threshold ablation shows that SafeDAgger's behavior depends on the choice of $\delta$, with $\delta = 2.0$ producing markedly cleaner intervention-rate decay than either $0.5$ or $3.0$.
-The calibration from the L2 action-disagreement distribution (targeting 20--30\,\% initial intervention) provides a principled recipe that may transfer to other action spaces, though the specific value is platform-dependent.
+The threshold sweep (\cref{sec:threshold_results}) reveals that the relationship between $\delta$ and performance is neither smooth nor monotonic.
+The curve exhibits multiple local peaks and dips whose positions are likely sensitive to individual training seeds rather than systematic properties of the threshold.
+Using the DAgger distribution to scope the sweep range places meaningful threshold candidates in $[2.0, 4.0]$.
+This principle of deriving the sweep range from an intervention-free reference is expected to transfer to other action spaces, though the specific optimum is platform-dependent.
 
 %% =========================================================================
 \section{Limitations}%
 \label{sec:limitations}%
 
-The present study has several limitations that constrain the generality of its conclusions and that motivate the work planned for the master's thesis.
+The present study has several limitations that constrain the generality of its conclusions and that motivate future work.
 
-\paragraph{Simulation only.}
-All teacher and student policies were trained and evaluated in Isaac Lab.
-No real-robot rollouts were performed, and no system identification was carried out on the physical Agile Hand or the FR3.
-Although the sim-to-real-aware ADR schedule is designed to narrow the sim-to-real gap, the actual gap on the physical platform is unknown.
-The unsafe-episode rates reported in \cref{sec:distillation_results} are simulator-defined and should not be interpreted as predictions of hardware damage rates.
+All teacher and student policies were trained and evaluated in simulation only; no real-robot rollouts were performed and no system identification was carried out on the physical Agile Hand or the FR3.
+Although the sim-to-real-aware \ac{ADR} schedule is designed to narrow the sim-to-real gap, the actual gap on the physical platform is unknown, and the unsafe-episode rates reported in \cref{sec:distillation_results} are simulator-defined and should not be interpreted as predictions of hardware damage rates.
 
-\paragraph{Single hand, single arm, single task.}
-All experiments use the Agile Hand on the FR3 and target a single task (top-down grasping of rigid objects from a flat surface).
-The conclusions about SafeDAgger's safety advantage may or may not transfer to other hands (e.g., the Allegro or Shadow hands), other arms, or tasks that involve in-hand reorientation, regrasping, or tool use.
+All experiments use a single hand--arm combination (Agile Hand on FR3) and target a single task (top-down grasping of rigid objects from a flat surface), so the conclusions about SafeDAgger's safety advantage may not transfer to other hands (e.g., the Allegro or Shadow hands), other arms, or tasks that involve in-hand reorientation or regrasping.
+The training and evaluation set consists of only 8 objects; a substantially larger and more diverse object set would be needed to produce a generalizable grasping policy and to draw statistically robust conclusions about distillation method performance.
 
-\paragraph{Direct action-disagreement gating instead of a learned safety classifier.}
-The SafeDAgger variant used in this thesis gates teacher intervention on the L2 distance between the student's and teacher's actions, rather than on a learned binary safety classifier as in the original Zhang and Cho formulation~\cite{Zhang2016}.
-This choice is justified by the fact that the teacher is queried at every step, which makes a separate classifier redundant.
-It does, however, mean that the safety signal is purely action-based and does not incorporate value-based failure prediction.
+The SafeDAgger variant used in this thesis gates teacher intervention on the inverse-variance-weighted L2 distance between the student's and teacher's actions, rather than on a learned binary safety classifier as in the original Zhang and Cho formulation~\cite{Zhang2016}.
+The safety signal is therefore purely action-based and does not incorporate value-based failure prediction, which may limit its ability to distinguish genuinely dangerous states from benign action disagreements.
 
-\paragraph{No fabric-guided policies.}
-The original DextrAH-RGB pipeline relies on fabric-guided policies to produce smooth, kinematically consistent action targets.
-This component was deliberately omitted because of its implementation complexity, and the standard PPO actor was used instead.
+The original DextrAH-RGB pipeline relies on fabric-guided policies to produce smooth, kinematically consistent action targets, which was deliberately omitted in this work because of its implementation complexity.
 Adding fabrics would likely improve the smoothness of the teacher's action distribution and indirectly improve distillation quality.
 
 %% =========================================================================
@@ -69,10 +65,9 @@ Adding fabrics would likely improve the smoothness of the teacher's action distr
 \label{sec:conclusion_sec}%
 
 This semester thesis presented a privileged teacher--student distillation pipeline for dexterous grasping with a custom 23-degree-of-freedom Agile Hand and Franka Research~3 platform.
-Through a three-way comparison of BC, DAgger, and SafeDAgger, we validate that safety-aware distillation effectively reduces unsafe episodes during training while matching the task performance of vanilla DAgger.
-SafeDAgger's advantage is robust across evaluation objects and failure modes, with the largest safety margins on collision-prone geometries.
-A clear limitation is that the student's performance is largely constrained by the teacher's capability: the teacher stalls at ADR level~14, and all student policies recover at most 85\,\% of this ceiling.
-Improving the teacher through structured low-level control is therefore a prerequisite for further progress.
+Through a three-way comparison of BC, DAgger, and SafeDAgger at a suitable safety threshold, we show that safety-aware distillation produces the strongest student on both axes: 97.0\,\% grasp success (about 98\,\% of the teacher ceiling) and the lowest evaluation unsafe-episode rate among the three methods.
+The task-performance gap to the teacher is now small (2 percentage points); the remaining gap is on safety, where the student's 38.3\,\% unsafe-episode rate is still roughly 3$\times$ the teacher's 12.2\,\%.
+Closing this safety gap, rather than further improving raw task performance, is the main direction for future work.
 
 %% =========================================================================
 \section{Future Work}%
@@ -88,8 +83,7 @@ A likely explanation is that these systems use Fabric-Guided Policies (FGPs), wh
 The RL policy then operates in a reduced, kinematically consistent action space rather than commanding raw joint positions.
 DextrAH-RGB further reduces the hand's action space through Hand-PCA components derived from teleoperation data, which constrains the Allegro Hand to anthropomorphic synergies and simplifies exploration.
 Integrating an FGP or similar structured low-level controller for the Agile Hand is a promising direction for improving ADR consistency and teacher quality, and would make the reward terms for collision avoidance and palm alignment ($r_{\text{palm}}$, $r_{\text{action}}$) redundant.
-Since the student's performance is fundamentally bounded by the teacher's capability, a stronger teacher trained at higher ADR levels would directly improve distillation outcomes.
-DextrAH-RGB, for instance, distills at maximum ADR, which ensures robust zero-shot sim-to-real transfer -- a property that the current pipeline does not yet achieve.
+The student already recovers about 98\,\% of the teacher's lift success, so the immediate benefit of a stronger teacher is not raising the student's task ceiling but distilling at higher ADR levels, which DextrAH-RGB reports as the key ingredient for robust zero-shot sim-to-real transfer, a property that the current pipeline does not yet achieve.
 
 \paragraph{Scaling the distillation pipeline.}
 DextrAH-RGB achieves stronger distillation results in part through longer training schedules, more parallel environments, and a multi-GPU setup.
@@ -100,6 +94,12 @@ On the architecture side, the ResNet-18 backbone with two removed layers and the
 Ablations on the vision backbone (e.g., stronger feature extractors, different layer cutoffs), transformer depth, and hidden dimensions may yield better visual representations, particularly for the auxiliary object-position prediction task.
 
 \paragraph{Stronger safety signals.}
-The action-disagreement gate used in this thesis is the simplest reasonable implementation of safety-aware distillation.
-Two extensions are natural candidates: (i)~replacing the L2 gate with a learned binary safety classifier in the spirit of the original SafeDAgger formulation, and (ii)~incorporating Q-value-based failure prediction as proposed in DexSafeDagger~\cite{ChiZhang2026}, which couples the safety decision to the critic of the privileged teacher and is therefore expected to be more selective in identifying genuinely unsafe states.
+The action-disagreement gate used in this thesis is the simplest reasonable implementation of safety-aware distillation, and the threshold sweep reveals that the optimal operating point is sensitive to training noise and cannot be determined analytically.
+A natural extension is replacing the fixed-threshold weighted L2 gate with a learned risk predictor, such as the binary safety classifier from the original SafeDAgger formulation~\cite{Zhang2016}, which could adapt to the evolving student distribution rather than relying on a static threshold.
+More generally, coupling the safety decision to the privileged teacher's value estimate could provide a richer signal for identifying genuinely unsafe states.
+
+\paragraph{Weighted action disagreement.}
+The current disagreement metric treats all 23 action dimensions equally through the teacher's inverse-variance weighting.
+However, the 16 hand joints operate over substantially smaller ranges of motion than the 7 arm joints, so hand-level disagreements are numerically smaller and may be diluted when averaged with arm-level disagreements.
+Since grasp stability depends primarily on finger coordination, explicitly weighting hand-joint disagreements more heavily in the safety gate could make the intervention more sensitive to the subtle finger-action errors that lead to object-out-of-bounds failures.
 %

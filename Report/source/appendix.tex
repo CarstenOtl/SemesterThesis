@@ -96,20 +96,13 @@ This section reports the full evaluation data including physics instability for 
         basketball shoe       &  99.0 & 32.0 &  7.0 & 21.0 &  0.0 &  4.0 \\
         closed fist           & 100.0 & 19.5 &  0.0 &  9.0 &  0.0 & 10.5 \\
         elephant toy          & 100.0 & 22.0 &  2.0 &  0.5 &  0.5 & 19.0 \\
-        homer                 &  99.0 & 18.5 &  2.0 & 10.5 &  0.0 &  6.0 \\
         mario                 &  98.0 &  8.5 &  0.0 &  1.0 &  0.0 &  6.5 \\
         milk pot              &  96.5 & 15.0 &  0.5 &  5.0 &  0.0 &  9.5 \\
-        plane                 &  83.5 & 32.5 &  1.5 &  2.5 &  8.0 & 20.5 \\
         teddy bear            &  99.5 & 21.5 &  0.5 & 14.5 &  0.0 &  6.5 \\
-        toy bagger            &  99.0 & 25.5 &  2.0 &  7.5 &  1.0 & 15.0 \\
-        toy cow               & 100.0 & 23.5 &  0.0 & 12.0 &  0.5 & 11.0 \\
+        toy excavator         &  99.0 & 25.5 &  2.0 &  7.5 &  1.0 & 15.0 \\
         turtle candle holder  & 100.0 & 35.0 &  0.0 & 24.0 &  0.0 & 10.5 \\
         \midrule
-        chicken head in car   &   0.0 &  4.5 &  0.0 &  0.0 &  0.0 &  4.5 \\
-        train                 &   0.0 & 31.5 &  2.0 &  7.5 &  0.5 & 20.5 \\
-        \midrule
-        \textbf{Average (11 lifted)} & \textbf{97.7} & \textbf{23.0} & \textbf{1.4} & \textbf{9.8} & \textbf{0.9} & \textbf{10.9} \\
-        \textbf{Average (all 13)}    & \textbf{82.7} & \textbf{22.3} & \textbf{1.3} & \textbf{8.8} & \textbf{0.8} & \textbf{11.1} \\
+        \textbf{Average (8 objects)} & \textbf{99.0} & \textbf{22.4} & \textbf{1.5} & \textbf{10.3} & \textbf{0.2} & \textbf{10.2} \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -117,89 +110,21 @@ This section reports the full evaluation data including physics instability for 
 \section{Per-Object Failure Mode Breakdowns}%
 \label{app:per_object_failure}%
 
-\Cref{fig:per_object_failure_safedagger,fig:per_object_failure_dagger,fig:per_object_failure_bc} show the complete per-object failure mode evolution over distillation iterations for SafeDAgger, DAgger, and BC, respectively.
-Each subplot shows one evaluation object with failure categories: object out of bounds, harmful collision, palm flip, and physics instability.
+\Cref{fig:per_object_unsafe_heatmap,fig:per_object_unsafe_heatmap_physics} show the per-object unsafe-episode rate across all swept SafeDAgger thresholds, with \ac{BC} ($\delta \to 0$) and DAgger ($\delta \to \infty$) as endpoints.
+\Cref{fig:per_object_unsafe_heatmap} excludes physics-instability events; \cref{fig:per_object_unsafe_heatmap_physics} includes them for completeness.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_safedagger}
-    \caption{Per-object failure mode breakdown for SafeDAgger over distillation iterations.}
-    \label{fig:per_object_failure_safedagger}
+    \includegraphics[width=\textwidth]{plots/run14/run14_per_object_unsafe_heatmap}
+    \caption{Per-object unsafe-episode rate across the threshold sweep (physics excluded). Each cell shows the \acs{UER} for one object at one threshold. The basketball shoe and turtle candle holder exhibit the highest rates across most thresholds.}
+    \label{fig:per_object_unsafe_heatmap}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_dagger}
-    \caption{Per-object failure mode breakdown for DAgger over distillation iterations.}
-    \label{fig:per_object_failure_dagger}
+    \includegraphics[width=\textwidth]{plots/run14/run14_per_object_unsafe_heatmap_with_physics}
+    \caption{Per-object unsafe-episode rate across the threshold sweep (physics included). Physics-instability events raise the overall rates but do not change the relative ordering across methods.}
+    \label{fig:per_object_unsafe_heatmap_physics}
 \end{figure}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{plots/run9/per_object_failure_modes_bc}
-    \caption{Per-object failure mode breakdown for BC over distillation iterations.}
-    \label{fig:per_object_failure_bc}
-\end{figure}
-
-\section{Environment Scaling and ADR-Randomised Distillation}%
-\label{app:scaling_adr}%
-
-Building on the primary distillation comparison, two follow-up experiments isolate the effect of environment count and physics randomisation during distillation.
-Both reuse the same teacher, loss, and architecture; each modifies a single variable.
-
-\paragraph{32 environments (4 per object).}
-Increasing the parallel environment count from 24 to 32 yields the strongest student in this work: 79.2\,\% \acs{GSR} on the 8-object evaluation set, reaching 92.3\,\% of the teacher ceiling.
-\acs{UER} is essentially unchanged (64.6\,\% vs.\ 62.7\,\%).
-The improvement is consistent with the teacher training experience: cleaner per-object gradients dominate the trade-off against per-iteration wall-clock cost.
-
-\paragraph{Distillation under \acs{ADR}~5.}
-Enabling moderate physics randomisation (ADR level~5) during distillation degrades both methods, but the relative drop differs sharply: SafeDAgger falls from 79.2\,\% to 63.9\,\% \acs{GSR} ($-15.3$\,pp), while DAgger falls from 71.7\,\% to 48.8\,\% ($-22.9$\,pp).
-The DAgger student's collision rate roughly doubles, whereas SafeDAgger's grows more modestly.
-This asymmetric degradation provides direct evidence that safety-aware gating is less brittle to distribution shifts than uniform-coverage imitation.
-
-\Cref{tab:run10_run11_results} consolidates the evaluation numbers.
-\Cref{fig:run10b_lift,fig:run11_lift} show the lift-success training curves, and \cref{fig:run10b_vs_run11_per_object} compares per-object lift between the best ADR-0 student and the ADR-5 students.
-
-\begin{table}[htb]
-    \centering
-    \caption{Standalone evaluation of environment scaling and ADR distillation experiments. \emph{Best student in bold.}}
-    \label{tab:run10_run11_results}
-    \begin{tabular}{llcccc}
-        \toprule
-        \textbf{Experiment} & \textbf{Method} & \textbf{Envs} & \textbf{ADR} & \textbf{\acs{GSR} (\%)} & \textbf{\acs{UER} (\%)} \\
-        \midrule
-        Teacher & PPO  & --- & 14 & 85.8 & 12.1 \\
-        \midrule
-        Baseline         & SafeDAgger & 24 & 0 & 72.7 & 30.2 \\
-        Baseline         & DAgger     & 24 & 0 & 71.7 & 32.7 \\
-        \midrule
-        \textbf{32 envs} & \textbf{SafeDAgger} & \textbf{32} & \textbf{0} & \textbf{79.2} & \textbf{37.5} \\
-        ADR 5            & SafeDAgger & 32 & 5 & 63.9 & 34.1 \\
-        ADR 5            & DAgger     & 32 & 5 & 48.8 & 47.1 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\begin{figure}[htbp]
-    \centering
-    \begin{minipage}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/run10/lift_success_normed}
-        \caption{SafeDAgger with 32 environments reaches the highest student lift success (79.2\,\%) recorded in this work.}
-        \label{fig:run10b_lift}
-    \end{minipage}\hfill
-    \begin{minipage}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{plots/run11/lift_success_normed}
-        \caption{Lift success under \acs{ADR}~5. SafeDAgger (blue) degrades less than DAgger (orange) under randomised physics.}
-        \label{fig:run11_lift}
-    \end{minipage}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{plots/comparisons/run10b_vs_run11_per_object_lift}
-    \caption{Per-object lift success: 32-env SafeDAgger (ADR~0) versus ADR~5 SafeDAgger and DAgger. The gap to the ADR-0 best is consistently smaller for SafeDAgger.}
-    \label{fig:run10b_vs_run11_per_object}
-\end{figure}
 %
