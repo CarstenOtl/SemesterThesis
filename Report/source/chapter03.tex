@@ -240,8 +240,8 @@ The executed action is selected by thresholding $e_t$ against a safety threshold
 %
 Setting $\delta \to \infty$ recovers vanilla DAgger; $\delta \to 0$ recovers pure \ac{BC}.
 The threshold $\delta$ is calibrated empirically so that roughly $20$--$30$\,\% of environments are flagged unsafe at the start of distillation; the intervention rate then decays naturally as the student improves, providing an implicit curriculum from teacher-guided to student-autonomous execution.
-The calibration procedure is detailed in \cref{sec:ablation_threshold}.
-The complete procedure is given in \cref{alg:safedagger}; \hlsafe{highlighted lines} mark the safety-gating additions relative to vanilla DAgger.
+The calibration procedure is detailed in \Cref{sec:ablation_threshold}.
+The complete procedure is given in \Cref{alg:safedagger}; \hlsafe{highlighted lines} mark the safety-gating additions relative to vanilla DAgger.
 
 \begin{algorithm}[htb]
 \caption{Online SafeDAgger with direct action-disagreement gating. \hlsafe{Blue lines} indicate the safety-gating modifications that distinguish SafeDAgger from vanilla DAgger.}
@@ -289,7 +289,7 @@ This thesis reuses the visual encoder architecture from DextrAH-RGB~\cite{Singh2
 
 A stereo pair is used rather than a single camera because the student must infer the 3D position of the object without access to the privileged pose that the teacher saw; a stereo pair encodes parallax, which resolves the metric depth ambiguity of monocular images.
 The left and right RGB frames are passed through a shared (Siamese) ResNet-18~\cite{He2016} backbone, producing $128$ tokens of dimension $128$ per view.
-These tokens, together with a learnable \verb|[embed]| token, are fed into a two-layer transformer with a cross-attention mask that permits attention only \emph{between} views, forcing the network to learn implicit stereo correspondences without explicit depth supervision (\cref{fig:stereo_full}).
+These tokens, together with a learnable \verb|[embed]| token, are fed into a two-layer transformer with a cross-attention mask that permits attention only \emph{between} views, forcing the network to learn implicit stereo correspondences without explicit depth supervision (\Cref{fig:stereo_full}).
 The output of the \verb|[embed]| token is projected by an \ac{MLP} into a $64$-dimensional stereo embedding, which is concatenated with proprioception and fed into an \ac{LSTM} ($512$ hidden units) that provides temporal context across time steps.
 The entire stack is optimized jointly under the inverse-variance-weighted L2 loss (\cref{eq:wl2_loss}).
 

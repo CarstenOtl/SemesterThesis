@@ -32,7 +32,7 @@
 
 The teacher policy uses an \ac{LSTM}-based recurrent network implemented in rl\_games.
 The actor consists of an MLP encoder followed by an LSTM layer with 1024 hidden units, followed by an output head mapping to the 23-dimensional action space.
-The critic has an identical architecture but receives the larger critic observation (\cref{tab:ac_observations}).
+The critic has an identical architecture but receives the larger critic observation (\Cref{tab:ac_observations}).
 
 The student uses a vision--proprioception fusion architecture:
 \begin{enumerate}
@@ -81,7 +81,7 @@ All \ac{ADR} parameters share a single increment counter ($N_{\text{max}} = 50$,
 \section{Full Results Including Physics Instability}%
 \label{app:full_results}%
 
-The results in \cref{ch:experiments} exclude physics instability events (NaN joint states, velocity explosions), which are simulation-only artifacts that cannot occur on physical hardware.
+The results in \Cref{ch:experiments} exclude physics instability events (NaN joint states, velocity explosions), which are simulation-only artifacts that cannot occur on physical hardware.
 This section reports the full evaluation data including physics instability for completeness.
 
 \begin{table}[htb]
@@ -111,7 +111,7 @@ This section reports the full evaluation data including physics instability for 
 \label{app:per_object_failure}%
 
 \Cref{fig:per_object_unsafe_heatmap,fig:per_object_unsafe_heatmap_physics} show the per-object unsafe-episode rate across all swept SafeDAgger thresholds, with \ac{BC} ($\delta \to 0$) and DAgger ($\delta \to \infty$) as endpoints.
-\Cref{fig:per_object_unsafe_heatmap} excludes physics-instability events; \cref{fig:per_object_unsafe_heatmap_physics} includes them for completeness.
+\Cref{fig:per_object_unsafe_heatmap} excludes physics-instability events; \Cref{fig:per_object_unsafe_heatmap_physics} includes them for completeness.
 
 \begin{figure}[htbp]
     \centering

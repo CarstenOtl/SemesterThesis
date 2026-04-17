@@ -2,7 +2,7 @@
 \chapter{Discussion and Conclusion}%
 \label{ch:conclusion}%
 
-This chapter interprets the experimental results of \cref{ch:experiments}, discusses the limitations of the present study, and outlines directions for future work.
+This chapter interprets the experimental results of \Cref{ch:experiments}, discusses the limitations of the present study, and outlines directions for future work.
 
 %% =========================================================================
 \section{Discussion}%
@@ -37,7 +37,7 @@ Training the student under \ac{ADR} conditions closer to those of the teacher, i
 \subsection{Calibration and the Non-Monotonic Threshold-Performance Curve}%
 \label{sec:impl_details}%
 
-The threshold sweep (\cref{sec:threshold_results}) reveals that the relationship between $\delta$ and performance is neither smooth nor monotonic.
+The threshold sweep (\Cref{sec:threshold_results}) reveals that the relationship between $\delta$ and performance is neither smooth nor monotonic.
 The curve exhibits multiple local peaks and dips whose positions are likely sensitive to individual training seeds rather than systematic properties of the threshold.
 Using the DAgger distribution to scope the sweep range places meaningful threshold candidates in $[2.0, 4.0]$.
 This principle of deriving the sweep range from an intervention-free reference is expected to transfer to other action spaces, though the specific optimum is platform-dependent.
@@ -49,7 +49,7 @@ This principle of deriving the sweep range from an intervention-free reference i
 The present study has several limitations that constrain the generality of its conclusions and that motivate future work.
 
 All teacher and student policies were trained and evaluated in simulation only; no real-robot rollouts were performed and no system identification was carried out on the physical Agile Hand or the FR3.
-Although the sim-to-real-aware \ac{ADR} schedule is designed to narrow the sim-to-real gap, the actual gap on the physical platform is unknown, and the unsafe-episode rates reported in \cref{sec:distillation_results} are simulator-defined and should not be interpreted as predictions of hardware damage rates.
+Although the sim-to-real-aware \ac{ADR} schedule is designed to narrow the sim-to-real gap, the actual gap on the physical platform is unknown, and the unsafe-episode rates reported in \Cref{sec:distillation_results} are simulator-defined and should not be interpreted as predictions of hardware damage rates.
 
 All experiments use a single hand--arm combination (Agile Hand on FR3) and target a single task (top-down grasping of rigid objects from a flat surface), so the conclusions about SafeDAgger's safety advantage may not transfer to other hands (e.g., the Allegro or Shadow hands), other arms, or tasks that involve in-hand reorientation or regrasping.
 The training and evaluation set consists of only 8 objects; a substantially larger and more diverse object set would be needed to produce a generalizable grasping policy and to draw statistically robust conclusions about distillation method performance.

@@ -12,7 +12,7 @@ Each section traces how the field evolved, highlights the strengths and limitati
 Dexterous grasping with anthropomorphic hands has been studied for decades, but only recently have learned policies begun to outperform classical pipelines on unstructured object sets.
 This section contrasts analytical and learning-based paradigms, tracing how the limitations of the former motivated the shift to the latter.
 
-\subsection{Analytical and Data-Driven Grasp Planning}%
+\subsection{Analytical and Data-Driven Grasp Synthesis}%
 \label{subsec:rule_based_grasping}%
 
 Classical robotic grasping formulates the problem as finding contact points on a known object surface that satisfy force closure, meaning that the contact wrenches alone can resist arbitrary external loads~\cite{Bicchi2000, Ferrari1992}.
@@ -29,7 +29,7 @@ First, the search space grows to $\mathrm{SE}(3) \times \mathbb{R}^{n_h}$ for an
 Second, all variants produce static grasp configurations that are executed by a separate controller and cannot adapt if conditions differ from the assumed model; whenever the object geometry, contact physics, or robot kinematics are wrong, as is unavoidable for novel objects, deformable materials, or worn hardware, the planned grasp fails~\cite{Tang2024}.
 Errors compound across the pipeline, and the absence of online adaptation prevents recovery from perturbations.
 
-\subsection{Reinforcement Learning}%
+\subsection{Reinforcement Learning Based Grasping Policies}%
 \label{subsec:learning_based_grasping}%
 
 The static, non-adaptive nature and model dependence of analytical methods motivate a fundamentally different paradigm: \ac{RL}, which jointly learns perception, grasp strategy, and reactive control from interaction~\cite{Tang2024}.
@@ -100,7 +100,7 @@ To the best of the author's knowledge, no prior work has reported a head-to-head
 
 Training entirely in simulation avoids the cost and risk of real-world data collection but introduces the \emph{sim-to-real gap}, referring to discrepancies between simulated and real physics, perception, and actuation.
 \ac{DR} is the dominant strategy for closing this gap: simulation parameters are varied across training episodes so that the policy learns to be robust to a wide distribution of conditions~\cite{Tobin2017}.
-The underlying hypothesis, illustrated in \cref{fig:domain_randomization}, is that if the real world falls within the distribution of randomized simulations, the policy will generalize at deployment time without fine-tuning.
+The underlying hypothesis, illustrated in \Cref{fig:domain_randomization}, is that if the real world falls within the distribution of randomized simulations, the policy will generalize at deployment time without fine-tuning.
 
 \begin{figure}[htb]
     \centering
@@ -117,5 +117,5 @@ A drawback of manually selected randomization ranges is that they are difficult 
 \ac{ADR}~\cite{OpenAI2020} automates this trade-off by gradually widening the parameter ranges based on policy performance, producing an emergent curriculum from easy to hard.
 Handa et al.~\cite{Handa2024} showed in DeXtreme that vectorized \ac{ADR} on top of GPU-accelerated simulation is sufficient to transfer in-hand manipulation policies trained purely in simulation to a real Allegro Hand without any motion-capture system.
 
-\ac{ADR} is the strategy adopted for the teacher policy in this thesis (\cref{ch:experiments}), with a curriculum schedule custom-designed for the Agile Hand and \ac{FR3} hardware.
+\ac{ADR} is the strategy adopted for the teacher policy in this thesis (\Cref{ch:experiments}), with a curriculum schedule custom-designed for the Agile Hand and \ac{FR3} hardware.
 %
